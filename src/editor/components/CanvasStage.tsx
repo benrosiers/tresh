@@ -306,14 +306,15 @@ export function CanvasStage() {
             onDrag={(event) => {
               const start = interactionRef.current;
               if (!start) return;
+              const [deltaX = 0, deltaY = 0] = event.beforeTranslate;
               livePatch({
                 xPercent: clamp(
-                  start.placement.xPercent + (event.beforeTranslate[0] / start.sectionWidth) * 100,
+                  start.placement.xPercent + (deltaX / start.sectionWidth) * 100,
                   0,
                   100,
                 ),
                 yPercent: clamp(
-                  start.placement.yPercent + (event.beforeTranslate[1] / start.sectionHeight) * 100,
+                  start.placement.yPercent + (deltaY / start.sectionHeight) * 100,
                   0,
                   100,
                 ),
@@ -324,16 +325,16 @@ export function CanvasStage() {
             onResize={(event) => {
               const start = interactionRef.current;
               if (!start) return;
-              const dragOffset = event.drag.beforeTranslate;
+              const [dragX = 0, dragY = 0] = event.drag.beforeTranslate;
               livePatch({
                 widthPercent: clamp((event.width / start.sectionWidth) * 100, 4, 100),
                 xPercent: clamp(
-                  start.placement.xPercent + (dragOffset[0] / start.sectionWidth) * 100,
+                  start.placement.xPercent + (dragX / start.sectionWidth) * 100,
                   0,
                   100,
                 ),
                 yPercent: clamp(
-                  start.placement.yPercent + (dragOffset[1] / start.sectionHeight) * 100,
+                  start.placement.yPercent + (dragY / start.sectionHeight) * 100,
                   0,
                   100,
                 ),
