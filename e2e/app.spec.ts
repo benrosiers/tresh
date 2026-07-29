@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('foundation shell is explicit about unavailable functionality', async ({ page }) => {
+test('renders the visual editor shell', async ({ page }) => {
   await page.goto('/');
-
-  await expect(page.getByRole('heading', { name: 'Fondation du véritable éditeur' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('aucune fausse publication');
+  await expect(page.getByText('Atelier Expression')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Publier' })).toBeVisible();
+  await expect(page.getByText('Pas performer. Pas survivre.')).toBeVisible();
 });

@@ -1,50 +1,62 @@
 # Tresh
 
-Tresh is a private, component-controlled visual CMS for publishing integrated websites. Its first integration is Atelier Expression.
+Tresh is a component-controlled visual CMS for editing and publishing integrated websites without exposing GitHub, builds, deployment hooks, or database concepts to the site owner.
 
-> Repository visibility is public. Editing access, drafts, releases, media, and privileged publication remain protected by Supabase Auth, RLS, and server-side functions.
+The first integration target is `atelierexpression.ca`.
 
-## Current status
+## Current milestone
 
-Foundation step 1 is complete:
+The React/TypeScript visual editor shell is now functional locally:
 
-- React + TypeScript + Vite shell
-- Puck, React Moveable, Supabase, and Zod dependencies declared
-- Vitest and Playwright foundations
-- GitHub Actions CI and GitHub Pages deployment workflows
-- versioned site-document contract
-- architecture and contribution boundaries
-- Claude's HTML prototype preserved at `prototypes/tresh-editor-v0.html`
+- desktop, tablet, and mobile previews;
+- section filmstrip and reordering;
+- layer selection, visibility, and locking;
+- local addition and deletion of text, buttons, images, paints, and sections;
+- Moveable drag, resize, and rotation controls;
+- typed responsive placement inheritance;
+- undo and redo;
+- real browser-local draft persistence;
+- no fake production publishing.
 
-There is deliberately no fake save or publish operation in the React application.
+The original Claude prototype remains unchanged in `prototypes/tresh-editor-v0.html` as the UX reference.
 
-## Local development
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Tresh runs on `http://127.0.0.1:4326`.
+The development server uses `http://127.0.0.1:4326`.
 
-## Verification
+## Validation
 
 ```bash
-npm run check
-npm run test:e2e:install
-npm run test:e2e
+npm run typecheck
+npm test
+npm run build
 ```
 
-## Environment
+## Important boundary
 
-Copy `.env.example` to `.env.local` when the Supabase project exists. Never expose a service-role key or a deployment credential through a `VITE_` variable.
+The current **Publier** action intentionally explains that production publishing is unavailable. It does not show a fake progress sequence. Production publishing will require:
 
-## Hosting
+1. Supabase authentication and RLS;
+2. immutable page revisions and releases;
+3. a privileged Edge Function;
+4. the `benrosiers/atelierexpression` GitHub Actions workflow.
 
-- `tresh.ca`: GitHub Pages from this repository.
-- `atelierexpression.ca`: GitHub Pages from its own repository.
-- backend: Supabase Auth, Postgres, Storage, and Edge Functions.
+## Repository layout
 
-## License
-
-No open-source license has been selected yet. Public visibility does not grant reuse rights by itself. A deliberate license decision will be made before a stable public release.
+```text
+src/editor/            visual editor and document model
+src/auth/              future authentication boundary
+src/media/             future media library boundary
+src/releases/          future release history boundary
+src/integrations/      future site adapter boundary
+supabase/              migrations and Edge Functions
+prototypes/            non-production UX references
+tests/                 unit tests
+e2e/                   Playwright tests
+docs/                  architecture decisions
+```
