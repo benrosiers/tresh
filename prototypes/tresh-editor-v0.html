@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tresh — Atelier Expression</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* editor chrome — cool, technical, deliberately quiet */
+    --ink:      #14161A;
+    --panel:    #1B1E24;
+    --panel-2:  #21252C;
+    --line:     #2C313A;
+    --steel:    #8B93A1;
+    --steel-lo: #5B6270;
+    --paper:    #F4F1EC;
+    --accent:   #57D9C4;      /* tool accent: cyan-teal, precision */
+    --accent-dim: #2E5C55;
+    --warn:     #E8A54B;      /* publish / primary action, warm but not terracotta */
+    --danger:   #E8687A;
+
+    /* content colors — the site's own palette, lives only inside the canvas */
+    --site-bg:   #FBF8F3;
+    --coral:     #E98B5F;
+    --rose:      #E8A0B0;
+    --peach:     #F2C79A;
+    --ink-site:  #2B2620;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    display:grid;
+    grid-template-rows:52px 1fr 74px;
+    height:100vh;
+  }
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    grid-row:1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 16px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    font-size:13px;
+  }
+  .tb-left{display:flex;align-items:center;gap:14px;}
+  .brand{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:.06em;
+    color:var(--steel);
+    display:flex;align-items:center;gap:7px;
+  }
+  .brand b{color:var(--paper);font-weight:600;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+  .crumbs{color:var(--steel-lo);font-size:12.5px;}
+  .crumbs em{color:var(--paper);font-style:normal;}
+
+  .bp-switch{
+    display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px;
+  }
+  .bp-switch button{
+    border:none;background:transparent;color:var(--steel);font-size:12px;font-family:'Inter';
+    padding:6px 12px;border-radius:6px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
+  }
+  .bp-switch button.active{background:var(--ink);color:var(--paper);}
+  .bp-switch button:hover:not(.active){color:var(--paper);}
+
+  .tb-right{display:flex;align-items:center;gap:8px;}
+  .btn{
+    font-family:'Inter';font-size:12.5px;font-weight:500;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--paper);padding:7px 13px;cursor:pointer;transition:.15s;
+    display:flex;align-items:center;gap:6px;
+  }
+  .btn:hover{border-color:var(--steel-lo);}
+  .btn:disabled{opacity:.35;cursor:default;}
+  .btn:disabled:hover{border-color:var(--line);}
+  .btn.primary{background:var(--warn);border-color:var(--warn);color:#241505;font-weight:600;}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .save-state{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--steel-lo);display:flex;align-items:center;gap:6px;}
+
+  /* ---------- MAIN ---------- */
+  .main{grid-row:2;display:grid;grid-template-columns:230px 1fr 260px;min-height:0;}
+
+  .rail{background:var(--panel);overflow-y:auto;}
+  .rail-left{border-right:1px solid var(--line);}
+  .rail-right{border-left:1px solid var(--line);}
+
+  .rail-title{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--steel-lo);padding:14px 14px 8px;
+  }
+  .el-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 14px;}
+  .el-card{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:12px 8px;
+    display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:.15s;
+    font-size:11px;color:var(--steel);
+  }
+  .el-card:hover{border-color:var(--accent);color:var(--paper);}
+  .el-card .ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+
+  .mode-toggle{margin:2px 14px 4px;display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:2px;}
+  .mode-toggle button{flex:1;border:none;background:transparent;color:var(--steel);font-size:11px;padding:6px 0;border-radius:5px;cursor:pointer;font-family:'Inter';}
+  .mode-toggle button.active{background:var(--ink);color:var(--accent);}
+
+  .layers{padding:2px 8px 14px;}
+  .layer-row{
+    display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--steel);
+    border:1px solid transparent;
+  }
+  .layer-row:hover{background:var(--panel-2);}
+  .layer-row.selected{background:var(--panel-2);border-color:var(--accent);color:var(--paper);}
+  .layer-row .swatch{width:9px;height:9px;border-radius:3px;flex:none;}
+  .layer-row .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .layer-row .eye{opacity:.4;font-size:11px;}
+  .layer-row .eye:hover{opacity:1;}
+
+  /* canvas viewport */
+  .stage{
+    position:relative;overflow:auto;background:
+      radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px,
+      var(--ink);
+    display:flex;justify-content:center;padding:36px 0 60px;
+  }
+  .frame-wrap{position:relative;flex:none;}
+  .frame{
+    position:relative;background:var(--site-bg);box-shadow:0 30px 70px -20px rgba(0,0,0,.6), 0 0 0 1px var(--line);
+    transform-origin:top center;
+  }
+  .frame-label{
+    position:absolute;top:-26px;left:0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--steel-lo);
+    display:flex;gap:8px;align-items:center;
+  }
+
+  .section{position:relative;overflow:hidden;border-bottom:1px dashed rgba(0,0,0,.08);}
+  .section:last-child{border-bottom:none;}
+  .section-tag{
+    position:absolute;top:8px;left:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(43,38,32,.28);
+    letter-spacing:.08em;text-transform:uppercase;pointer-events:none;z-index:50;
+  }
+
+  .site-text{
+    position:absolute;color:var(--ink-site);cursor:text;outline:none;line-height:1.15;
+  }
+  .site-text.eyebrow{font-family:'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--coral);}
+  .site-text.headline{font-family:'Fraunces',serif;font-style:italic;font-weight:500;}
+  .site-text.body{font-family:'Fraunces',serif;font-weight:300;}
+  .site-text.selected-outline{box-shadow:0 0 0 1.5px var(--accent);border-radius:3px;}
+  .site-text:focus{box-shadow:0 0 0 1.5px var(--accent);border-radius:3px;}
+
+  .pastille{
+    position:absolute;
+    background-size:cover;
+    filter:saturate(1.05);
+    cursor:grab;
+  }
+  .pastille.dragging{cursor:grabbing;}
+  .pastille.selected{outline:1.5px dashed var(--accent);outline-offset:6px;}
+
+  .handle{position:absolute;background:var(--accent);border-radius:50%;width:11px;height:11px;box-shadow:0 0 0 2px var(--ink);cursor:pointer;z-index:60;}
+  .handle.resize{right:-6px;bottom:-6px;cursor:nwse-resize;}
+  .handle.rotate{left:50%;top:-30px;transform:translateX(-50%);cursor:grab;}
+  .handle-line{position:absolute;left:50%;top:-24px;width:1px;height:24px;background:var(--accent);transform:translateX(-50%);z-index:59;}
+
+  .hud{
+    position:absolute;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink);
+    background:var(--accent);padding:4px 7px;border-radius:5px;white-space:nowrap;z-index:70;
+    top:-30px;left:0;font-weight:600;box-shadow:0 4px 10px rgba(0,0,0,.25);
+  }
+
+  /* right rail properties */
+  .prop-empty{padding:26px 16px;color:var(--steel-lo);font-size:12px;line-height:1.6;}
+  .prop-group{padding:12px 14px;border-bottom:1px solid var(--line);}
+  .prop-group h4{margin:0 0 10px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--steel-lo);font-family:'IBM Plex Mono',monospace;font-weight:500;}
+  .field{margin-bottom:10px;}
+  .field label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--steel);margin-bottom:5px;}
+  .field label .val{font-family:'IBM Plex Mono',monospace;color:var(--accent);}
+  .field input[type=range]{width:100%;accent-color:var(--accent);}
+  .field input[type=text],.field textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;color:var(--paper);
+    padding:7px 8px;font-size:12px;font-family:'Inter';resize:vertical;
+  }
+  .field input[type=text]:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
+  .swatch-row{display:flex;gap:7px;}
+  .swatch-btn{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex:none;}
+  .swatch-btn.active{border-color:var(--paper);}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  /* ---------- FILMSTRIP ---------- */
+  .filmstrip{
+    grid-row:3;background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;
+    padding:0 14px;gap:8px;overflow-x:auto;
+  }
+  .fs-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--steel-lo);letter-spacing:.08em;text-transform:uppercase;flex:none;margin-right:4px;}
+  .fs-card{
+    flex:none;width:150px;height:52px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);
+    display:flex;align-items:center;padding:0 10px;gap:9px;cursor:pointer;transition:.15s;position:relative;
+  }
+  .fs-card:hover{border-color:var(--steel-lo);}
+  .fs-card.current{border-color:var(--accent);}
+  .fs-swatch{width:30px;height:30px;border-radius:6px;flex:none;}
+  .fs-meta{display:flex;flex-direction:column;gap:2px;overflow:hidden;}
+  .fs-meta .t{font-size:12px;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fs-meta .n{font-size:10px;color:var(--steel-lo);}
+  .fs-moves{display:flex;flex-direction:column;gap:1px;margin-left:auto;}
+  .fs-moves button{border:none;background:transparent;color:var(--steel-lo);cursor:pointer;font-size:9px;padding:1px 4px;}
+  .fs-moves button:hover{color:var(--accent);}
+  .fs-eye{border:none;background:transparent;color:var(--steel-lo);cursor:pointer;font-size:12px;margin-left:6px;}
+  .fs-eye.off{color:var(--danger);}
+
+  /* ---------- MODAL ---------- */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(10,11,13,.72);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:200;
+  }
+  .modal{
+    width:380px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;
+    font-size:13px;
+  }
+  .modal h3{margin:0 0 4px;font-size:16px;font-weight:600;}
+  .modal .sub{color:var(--steel);font-size:12px;margin-bottom:18px;}
+  .step{display:flex;align-items:center;gap:10px;padding:7px 0;color:var(--steel-lo);font-size:12.5px;}
+  .step .mark{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--steel-lo);flex:none;display:flex;align-items:center;justify-content:center;font-size:9px;}
+  .step.done{color:var(--paper);}
+  .step.done .mark{background:var(--accent);border-color:var(--accent);color:#0c1614;}
+  .step.active{color:var(--paper);}
+  .step.active .mark{border-color:var(--accent);}
+  .modal-actions{margin-top:18px;display:flex;gap:8px;justify-content:flex-end;}
+  .modal-fail{color:var(--danger);font-size:12px;margin-top:10px;line-height:1.5;}
+
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+/* =========================================================================
+   TRESH — prototype de l'editeur visuel pour atelierexpression.ca
+   Structure : Puck (sections/texte) + ArtScene (pastilles drag/resize/rotate)
+   Modele de donnees : placement par breakpoint, hérité du desktop
+   ========================================================================= */
+
+const FRAME_W = { desktop: 1180, tablet: 768, mobile: 390 };
+const SECTION_H = {
+  desktop:{hero:480,manifeste:260,expression:340,pourqui:300,faq:260},
+  tablet: {hero:460,manifeste:280,expression:380,pourqui:340,faq:300},
+  mobile: {hero:520,manifeste:320,expression:460,pourqui:420,faq:360},
+};
+
+function defaultElements(){
+  return [
+    {id:'hero-eyebrow', type:'text', variant:'eyebrow', section:'hero',
+      content:'pour adultes vivants',
+      placement:{desktop:{xPercent:8,yPercent:20,widthPercent:40,fontSize:13}}},
+    {id:'hero-title', type:'text', variant:'headline', section:'hero',
+      content:'Pas performer. Pas survivre.',
+      placement:{desktop:{xPercent:8,yPercent:30,widthPercent:52,fontSize:40},
+                 mobile:{xPercent:7,yPercent:22,widthPercent:82,fontSize:30}}},
+    {id:'hero-body', type:'text', variant:'body', section:'hero',
+      content:'Des ateliers d\'expression pour adultes qui n\'ont plus envie de faire semblant.',
+      placement:{desktop:{xPercent:8,yPercent:56,widthPercent:38,fontSize:16},
+                 mobile:{xPercent:7,yPercent:52,widthPercent:80,fontSize:15}}},
+
+    {id:'hero-paint-coral', type:'pastille', asset:'coral', section:'hero',
+      placement:{desktop:{xPercent:70,yPercent:22,widthPercent:24,rotationDegrees:-7,zIndex:2,opacity:0.95,parallaxDepth:0.18},
+                 tablet:{xPercent:74,widthPercent:28},
+                 mobile:{xPercent:66,yPercent:8,widthPercent:38,rotationDegrees:-3}}},
+    {id:'hero-paint-rose', type:'pastille', asset:'rose', section:'hero',
+      placement:{desktop:{xPercent:84,yPercent:52,widthPercent:16,rotationDegrees:12,zIndex:3,opacity:0.9,parallaxDepth:0.32},
+                 mobile:{xPercent:80,yPercent:60,widthPercent:24,rotationDegrees:8}}},
+    {id:'hero-paint-peach', type:'pastille', asset:'peach', section:'hero',
+      placement:{desktop:{xPercent:58,yPercent:70,widthPercent:12,rotationDegrees:-18,zIndex:1,opacity:0.85,parallaxDepth:0.1},
+                 mobile:{xPercent:20,yPercent:78,widthPercent:20,rotationDegrees:-10}}},
+
+    {id:'manifeste-title', type:'text', variant:'headline', section:'manifeste',
+      content:'Le manifeste',
+      placement:{desktop:{xPercent:8,yPercent:30,widthPercent:44,fontSize:26}}},
+    {id:'manifeste-paint', type:'pastille', asset:'peach', section:'manifeste',
+      placement:{desktop:{xPercent:78,yPercent:35,widthPercent:14,rotationDegrees:6,zIndex:1,opacity:0.7,parallaxDepth:0.12}}},
+
+    {id:'expr-title', type:'text', variant:'headline', section:'expression',
+      content:'L\'expression, pas la performance',
+      placement:{desktop:{xPercent:8,yPercent:18,widthPercent:46,fontSize:26}}},
+    {id:'expr-paint-1', type:'pastille', asset:'rose', section:'expression',
+      placement:{desktop:{xPercent:12,yPercent:60,widthPercent:10,rotationDegrees:22,zIndex:1,opacity:0.8,parallaxDepth:0.15}}},
+    {id:'expr-paint-2', type:'pastille', asset:'coral', section:'expression',
+      placement:{desktop:{xPercent:88,yPercent:14,widthPercent:13,rotationDegrees:-14,zIndex:1,opacity:0.85,parallaxDepth:0.2}}},
+
+    {id:'pourqui-title', type:'text', variant:'headline', section:'pourqui',
+      content:'Pour qui',
+      placement:{desktop:{xPercent:8,yPercent:22,widthPercent:40,fontSize:26}}},
+
+    {id:'faq-title', type:'text', variant:'headline', section:'faq',
+      content:'Questions frequentes',
+      placement:{desktop:{xPercent:8,yPercent:24,widthPercent:44,fontSize:26}}},
+  ];
+}
+
+const ASSET_COLORS = {
+  coral:'var(--coral)', rose:'var(--rose)', peach:'var(--peach)',
+};
+const ASSET_HEX = { coral:'#E98B5F', rose:'#E8A0B0', peach:'#F2C79A' };
+const BLOB = "58% 42% 63% 37% / 41% 55% 45% 59%";
+
+let state = {
+  breakpoint:'desktop',
+  mode:'simple',
+  selectedId:null,
+  sections:[
+    {id:'hero',label:'Hero',visible:true},
+    {id:'manifeste',label:'Manifeste',visible:true},
+    {id:'expression',label:'Expression',visible:true},
+    {id:'pourqui',label:'Pour qui',visible:true},
+    {id:'faq',label:'FAQ',visible:true},
+  ],
+  elements: defaultElements(),
+  dirty:false,
+  publishing:null, // {step, done}
+  history:[
+    {label:'Version actuelle', when:'Aujourd\'hui, 14 h 32', active:true},
+    {label:'Version precedente', when:'Hier, 18 h 04', active:false},
+  ],
+};
+let undoStack = [];
+let drag = null; // active pointer interaction
+
+function snapshot(){ return JSON.parse(JSON.stringify({elements:state.elements, sections:state.sections})); }
+function pushUndo(){ undoStack.push(snapshot()); if(undoStack.length>40) undoStack.shift(); state.dirty=true; }
+function undo(){
+  if(!undoStack.length) return;
+  const prev = undoStack.pop();
+  state.elements = prev.elements; state.sections = prev.sections;
+  render();
+}
+
+function getPlacement(el, bp){
+  const d = el.placement.desktop || {};
+  if(bp==='desktop') return d;
+  return Object.assign({}, d, el.placement[bp]||{});
+}
+
+function el(tag, attrs, children){
+  const node = document.createElement(tag);
+  for(const k in attrs){
+    if(k==='class') node.className = attrs[k];
+    else if(k==='html') node.innerHTML = attrs[k];
+    else if(k.startsWith('on')) node.addEventListener(k.slice(2), attrs[k]);
+    else if(k==='style') Object.assign(node.style, attrs[k]);
+    else node.setAttribute(k, attrs[k]);
+  }
+  (children||[]).forEach(c=>{ if(c) node.appendChild(c); });
+  return node;
+}
+
+function selectedElement(){ return state.elements.find(e=>e.id===state.selectedId); }
+
+/* ---------------------------------------------------------------- render */
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(renderTopbar());
+  const main = el('div',{class:'main'},[
+    renderLeftRail(),
+    renderStage(),
+    renderRightRail(),
+  ]);
+  app.appendChild(main);
+  app.appendChild(renderFilmstrip());
+  if(state.publishing) app.appendChild(renderPublishModal());
+}
+
+function renderTopbar(){
+  const bar = el('div',{class:'topbar'});
+  bar.appendChild(el('div',{class:'tb-left'},[
+    el('div',{class:'brand'},[el('span',{class:'dot'}),document.createTextNode('TRESH'),el('b',{},[document.createTextNode('editeur')])]),
+    el('div',{class:'crumbs'},[document.createTextNode('Site: '), el('em',{},[document.createTextNode('Atelier Expression')]), document.createTextNode(' / Accueil')]),
+  ]));
+
+  const bpSwitch = el('div',{class:'bp-switch'});
+  [['desktop','Bureau'],['tablet','Tablette'],['mobile','Mobile']].forEach(([id,label])=>{
+    const b = el('button',{onclick:()=>{ state.breakpoint=id; state.selectedId=null; render(); }},[document.createTextNode(label)]);
+    if(state.breakpoint===id) b.classList.add('active');
+    bpSwitch.appendChild(b);
+  });
+
+  const right = el('div',{class:'tb-right'},[
+    el('div',{class:'save-state'},[
+      el('span',{class:'dot',style:{background: state.dirty? 'var(--warn)':'var(--accent)', boxShadow:'none'}}),
+      document.createTextNode(state.dirty? 'Sauvegarde...' : 'Sauvegarde'),
+    ]),
+    el('button',{class:'btn', onclick:undo, disabled: undoStack.length? undefined:'disabled'},[document.createTextNode('Annuler')]),
+    el('button',{class:'btn primary', onclick:startPublish},[document.createTextNode('Publier')]),
+  ]);
+
+  bar.appendChild(bpSwitch);
+  bar.appendChild(right);
+  return bar;
+}
+
+function renderLeftRail(){
+  const rail = el('div',{class:'rail rail-left'});
+  rail.appendChild(el('div',{class:'rail-title'},[document.createTextNode('Elements')]));
+  const items = [
+    ['Titre','Aa'], ['Texte','¶'], ['Bouton','▭'], ['Image','▨'],
+    ['Pastille','●'], ['Peinture','◐'], ['Section','▤'],
+  ];
+  const grid = el('div',{class:'el-grid'});
+  items.forEach(([label,glyph])=>{
+    grid.appendChild(el('div',{class:'el-card', onclick:()=>addElement(label)},[
+      el('div',{class:'ic'},[document.createTextNode(glyph)]),
+      document.createTextNode(label),
+    ]));
+  });
+  rail.appendChild(grid);
+
+  rail.appendChild(el('div',{class:'rail-title'},[document.createTextNode('Mode')]));
+  const modeT = el('div',{class:'mode-toggle'});
+  [['simple','Simple'],['avance','Avance']].forEach(([id,label])=>{
+    const b = el('button',{onclick:()=>{ state.mode=id; render(); }},[document.createTextNode(label)]);
+    if(state.mode===id) b.classList.add('active');
+    modeT.appendChild(b);
+  });
+  rail.appendChild(modeT);
+
+  rail.appendChild(el('div',{class:'rail-title'},[document.createTextNode('Calques — '+currentSectionLabel())]));
+  const layers = el('div',{class:'layers'});
+  state.elements.filter(e=>e.section===currentSectionId()).forEach(e=>{
+    const row = el('div',{class:'layer-row'+(state.selectedId===e.id?' selected':''), onclick:()=>{ state.selectedId=e.id; render(); }},[
+      el('span',{class:'swatch', style:{background: e.type==='pastille'? ASSET_HEX[e.asset] : 'var(--steel-lo)'}}),
+      el('span',{class:'name'},[document.createTextNode(e.type==='pastille' ? ('Pastille · '+e.asset) : (e.content||'').slice(0,20))]),
+    ]);
+    layers.appendChild(row);
+  });
+  rail.appendChild(layers);
+  return rail;
+}
+
+let currentSection = 'hero';
+function currentSectionId(){ return currentSection; }
+function currentSectionLabel(){ const s = state.sections.find(s=>s.id===currentSection); return s? s.label : ''; }
+
+function addElement(label){
+  pushUndo();
+  const id = label.toLowerCase()+'-'+Math.random().toString(36).slice(2,7);
+  if(label==='Pastille' || label==='Peinture'){
+    const asset = label==='Peinture' ? 'peach' : 'coral';
+    state.elements.push({id, type:'pastille', asset, section:currentSection,
+      placement:{desktop:{xPercent:45,yPercent:45,widthPercent:14,rotationDegrees:0,zIndex:2,opacity:0.9,parallaxDepth:0.15}}});
+  } else if(label==='Section'){
+    const newId = 'section-'+Math.random().toString(36).slice(2,6);
+    state.sections.push({id:newId,label:'Nouvelle section',visible:true});
+    Object.values(SECTION_H).forEach(m=>m[newId]=280);
+  } else {
+    state.elements.push({id, type:'text', variant: label==='Titre'?'headline':(label==='Bouton'?'body':'body'),
+      section:currentSection, content: label==='Bouton'?'Reserver ma place':'Nouveau texte',
+      placement:{desktop:{xPercent:10,yPercent:40,widthPercent:40,fontSize: label==='Titre'?26:15}}});
+  }
+  state.selectedId = state.elements[state.elements.length-1] ? state.elements[state.elements.length-1].id : null;
+  render();
+}
+
+function renderStage(){
+  const stage = el('div',{class:'stage'});
+  const fw = FRAME_W[state.breakpoint];
+  const heights = SECTION_H[state.breakpoint];
+  const totalH = state.sections.filter(s=>s.visible).reduce((a,s)=>a+(heights[s.id]||280),0);
+
+  const wrap = el('div',{class:'frame-wrap'});
+  wrap.appendChild(el('div',{class:'frame-label'},[document.createTextNode(fw+' px')]));
+  const frame = el('div',{class:'frame', style:{width:fw+'px', height:totalH+'px'}});
+
+  let yCursor = 0;
+  state.sections.forEach(sec=>{
+    if(!sec.visible) return;
+    const h = heights[sec.id] || 280;
+    currentSection===sec.id; // no-op, kept for clarity
+    const secDiv = el('div',{class:'section', style:{height:h+'px'}, 'data-section':sec.id});
+    secDiv.appendChild(el('div',{class:'section-tag'},[document.createTextNode(sec.label)]));
+    secDiv.addEventListener('mousedown', (ev)=>{ if(ev.target===secDiv){ currentSection=sec.id; state.selectedId=null; render(); } });
+
+    state.elements.filter(e=>e.section===sec.id).forEach(e=>{
+      secDiv.appendChild(renderElementNode(e, fw, h));
+    });
+    frame.appendChild(secDiv);
+    yCursor += h;
+  });
+
+  wrap.appendChild(frame);
+  stage.appendChild(wrap);
+  return stage;
+}
+
+function renderElementNode(e, frameW, sectionH){
+  const p = getPlacement(e, state.breakpoint);
+  const isSel = state.selectedId===e.id;
+
+  if(e.type==='text'){
+    const node = el(e.variant==='headline' ? 'h2':'div', {
+      class:'site-text '+e.variant + (isSel? ' selected-outline':''),
+      contenteditable:'true',
+      style:{
+        left:p.xPercent+'%', top:p.yPercent+'%', width:p.widthPercent+'%',
+        fontSize:(p.fontSize||16)+'px', margin:0,
+      },
+      html: e.content,
+    });
+    node.addEventListener('mousedown', (ev)=>{ ev.stopPropagation(); currentSection=e.section; state.selectedId=e.id; render(); });
+    node.addEventListener('blur', ()=>{ pushUndo(); e.content = node.innerHTML; state.dirty=true; });
+    // re-focus after render if this was mid-edit
+    return node;
+  }
+
+  // pastille
+  const wPx = frameW * (p.widthPercent/100);
+  const node = el('div',{
+    class:'pastille'+(isSel?' selected':''),
+    style:{
+      left:p.xPercent+'%', top:p.yPercent+'%',
+      width:wPx+'px', height:wPx+'px',
+      background: ASSET_HEX[e.asset],
+      borderRadius: BLOB,
+      transform:'translate(-50%,-50%) rotate('+(p.rotationDegrees||0)+'deg)',
+      opacity: p.opacity!=null?p.opacity:1,
+      zIndex: p.zIndex||1,
+    },
+  });
+  node.addEventListener('mousedown', (ev)=>startPastilleDrag(ev, e, node));
+
+  const container = el('div',{style:{position:'absolute', left:0, top:0, width:'100%', height:'100%', pointerEvents:'none'}});
+  // wrap so handles position relative to the pastille itself
+  const wrapper = el('div',{style:{position:'absolute', left:p.xPercent+'%', top:p.yPercent+'%', width:wPx+'px', height:wPx+'px',
+      transform:'translate(-50%,-50%)'}});
+  wrapper.appendChild(el('div',{style:{position:'absolute',inset:0,borderRadius:BLOB,background:ASSET_HEX[e.asset],
+      opacity:p.opacity!=null?p.opacity:1, transform:'rotate('+(p.rotationDegrees||0)+'deg)', zIndex:p.zIndex||1,
+      outline: isSel? '1.5px dashed var(--accent)':'none', outlineOffset:'6px', cursor:'grab'}, 'data-pastille':e.id}));
+  wrapper.querySelector('[data-pastille]').addEventListener('mousedown',(ev)=>startPastilleDrag(ev,e,wrapper));
+
+  if(isSel){
+    wrapper.appendChild(el('div',{class:'handle-line'}));
+    wrapper.appendChild(el('div',{class:'handle rotate'}));
+    wrapper.appendChild(el('div',{class:'handle resize'}));
+    wrapper.querySelector('.handle.rotate').addEventListener('mousedown',(ev)=>startRotate(ev,e,wrapper));
+    wrapper.querySelector('.handle.resize').addEventListener('mousedown',(ev)=>startResize(ev,e,wrapper));
+    const hud = el('div',{class:'hud'},[document.createTextNode(
+      'x '+Math.round(p.xPercent)+'% · y '+Math.round(p.yPercent)+'% · w '+Math.round(p.widthPercent)+'% · rot '+Math.round(p.rotationDegrees||0)+'deg'
+    )]);
+    wrapper.appendChild(hud);
+  }
+  return wrapper;
+}
+
+/* ------------------------------------------------------------ dragging */
+
+function frameEl(){ return document.querySelector('.frame'); }
+
+function startPastilleDrag(ev, e, wrapper){
+  ev.preventDefault(); ev.stopPropagation();
+  currentSection = e.section; state.selectedId = e.id;
+  const frame = frameEl(); if(!frame) return;
+  const rect = frame.getBoundingClientRect();
+  const sectionRect = wrapper.closest('.section') ? wrapper.closest('.section').getBoundingClientRect() : rect;
+  const scale = rect.width / FRAME_W[state.breakpoint];
+  pushUndo();
+  drag = {kind:'move', e, sectionRect, scale};
+  render();
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+function startRotate(ev, e, wrapper){
+  ev.preventDefault(); ev.stopPropagation();
+  const rect = wrapper.getBoundingClientRect();
+  const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
+  pushUndo();
+  drag = {kind:'rotate', e, cx, cy};
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+function startResize(ev, e, wrapper){
+  ev.preventDefault(); ev.stopPropagation();
+  const frame = frameEl();
+  const scale = frame.getBoundingClientRect().width / FRAME_W[state.breakpoint];
+  const rect = wrapper.getBoundingClientRect();
+  pushUndo();
+  drag = {kind:'resize', e, scale, cx:rect.left+rect.width/2, cy:rect.top+rect.height/2};
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+
+function ensurePlacement(e, bp){
+  if(bp==='desktop') return e.placement.desktop;
+  if(!e.placement[bp]) e.placement[bp] = {};
+  return e.placement[bp];
+}
+
+function onDragMove(ev){
+  if(!drag) return;
+  const bp = state.breakpoint;
+  const target = ensurePlacement(drag.e, bp);
+  const merged = getPlacement(drag.e, bp);
+
+  if(drag.kind==='move'){
+    const sr = drag.sectionRect;
+    let xPct = ((ev.clientX - sr.left)/sr.width)*100;
+    let yPct = ((ev.clientY - sr.top)/sr.height)*100;
+    xPct = Math.max(0,Math.min(100,xPct));
+    yPct = Math.max(0,Math.min(100,yPct));
+    target.xPercent = Math.round(xPct*10)/10;
+    target.yPercent = Math.round(yPct*10)/10;
+  } else if(drag.kind==='rotate'){
+    const angle = Math.atan2(ev.clientY-drag.cy, ev.clientX-drag.cx)*180/Math.PI + 90;
+    target.rotationDegrees = Math.round(angle);
+  } else if(drag.kind==='resize'){
+    const dx = ev.clientX-drag.cx, dy = ev.clientY-drag.cy;
+    const distPx = Math.sqrt(dx*dx+dy*dy)*2;
+    const distPct = (distPx/drag.scale)/FRAME_W[bp]*100;
+    target.widthPercent = Math.max(4, Math.min(70, Math.round(distPct*10)/10));
+  }
+  state.dirty = true;
+  renderStageOnly();
+}
+function onDragEnd(){
+  drag = null;
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  render();
+}
+function renderStageOnly(){
+  // lightweight re-render during drag: swap stage + right rail only
+  const app = document.getElementById('app');
+  const main = app.querySelector('.main');
+  const newStage = renderStage();
+  main.replaceChild(newStage, main.children[1]);
+  const newRight = renderRightRail();
+  main.replaceChild(newRight, main.children[2]);
+}
+
+/* ------------------------------------------------------------- props panel */
+
+function renderRightRail(){
+  const rail = el('div',{class:'rail rail-right'});
+  const sel = selectedElement();
+  if(!sel){
+    rail.appendChild(el('div',{class:'rail-title'},[document.createTextNode('Proprietes')]));
+    rail.appendChild(el('div',{class:'prop-empty'},[document.createTextNode(
+      'Selectionne un texte ou une pastille dans l\'aperçu, ou dans les calques, pour voir ses proprietes ici.'
+    )]));
+    return rail;
+  }
+  const p = getPlacement(sel, state.breakpoint);
+  rail.appendChild(el('div',{class:'rail-title'},[document.createTextNode(
+    (sel.type==='pastille' ? 'Pastille' : 'Texte') + ' — ' + state.breakpoint
+  )]));
+
+  if(sel.type==='text'){
+    const g = el('div',{class:'prop-group'});
+    g.appendChild(el('h4',{},[document.createTextNode('Contenu')]));
+    const f = el('div',{class:'field'});
+    const ta = el('textarea',{rows:'3'});
+    ta.value = sel.content.replace(/<[^>]+>/g,'');
+    ta.addEventListener('change',()=>{ pushUndo(); sel.content = ta.value; render(); });
+    f.appendChild(ta);
+    g.appendChild(f);
+    rail.appendChild(g);
+
+    const g2 = el('div',{class:'prop-group'});
+    g2.appendChild(el('h4',{},[document.createTextNode('Taille du texte')]));
+    g2.appendChild(rangeField('Taille (px)', p.fontSize||16, 10, 64, v=>{ ensurePlacement(sel,state.breakpoint).fontSize=v; }));
+    g2.appendChild(rangeField('Largeur (%)', p.widthPercent, 10, 100, v=>{ ensurePlacement(sel,state.breakpoint).widthPercent=v; }));
+    rail.appendChild(g2);
+  } else {
+    const g = el('div',{class:'prop-group'});
+    g.appendChild(el('h4',{},[document.createTextNode('Couleur')]));
+    const row = el('div',{class:'swatch-row'});
+    Object.keys(ASSET_HEX).forEach(a=>{
+      const b = el('div',{class:'swatch-btn'+(sel.asset===a?' active':''), style:{background:ASSET_HEX[a]},
+        onclick:()=>{ pushUndo(); sel.asset=a; render(); }});
+      row.appendChild(b);
+    });
+    g.appendChild(row);
+    rail.appendChild(g);
+
+    const g2 = el('div',{class:'prop-group'});
+    g2.appendChild(el('h4',{},[document.createTextNode('Position et forme')]));
+    g2.appendChild(rangeField('Position X (%)', p.xPercent, 0, 100, v=>{ ensurePlacement(sel,state.breakpoint).xPercent=v; }));
+    g2.appendChild(rangeField('Position Y (%)', p.yPercent, 0, 100, v=>{ ensurePlacement(sel,state.breakpoint).yPercent=v; }));
+    g2.appendChild(rangeField('Taille (%)', p.widthPercent, 4, 70, v=>{ ensurePlacement(sel,state.breakpoint).widthPercent=v; }));
+    g2.appendChild(rangeField('Rotation (deg)', p.rotationDegrees||0, -180, 180, v=>{ ensurePlacement(sel,state.breakpoint).rotationDegrees=v; }));
+    g2.appendChild(rangeField('Opacite', p.opacity!=null?p.opacity:1, 0, 1, v=>{ ensurePlacement(sel,state.breakpoint).opacity=v; }, 0.01));
+    rail.appendChild(g2);
+
+    if(state.mode==='avance'){
+      const g3 = el('div',{class:'prop-group'});
+      g3.appendChild(el('h4',{},[document.createTextNode('Avance')]));
+      g3.appendChild(rangeField('Ordre (z-index)', p.zIndex||1, 0, 8, v=>{ ensurePlacement(sel,state.breakpoint).zIndex=v; }, 1));
+      g3.appendChild(rangeField('Profondeur parallaxe', p.parallaxDepth||0, 0, 1, v=>{ ensurePlacement(sel,state.breakpoint).parallaxDepth=v; }, 0.01));
+      rail.appendChild(g3);
+    }
+  }
+
+  const g4 = el('div',{class:'prop-group'});
+  g4.appendChild(el('h4',{},[document.createTextNode('Element')]));
+  g4.appendChild(el('button',{class:'btn', style:{width:'100%',justifyContent:'center'},
+    onclick:()=>{ pushUndo(); state.elements = state.elements.filter(x=>x.id!==sel.id); state.selectedId=null; render(); }
+  },[document.createTextNode('Supprimer')]));
+  rail.appendChild(g4);
+
+  return rail;
+}
+
+function rangeField(label, val, min, max, onchange, step){
+  const f = el('div',{class:'field'});
+  const l = el('label',{},[document.createTextNode(label), el('span',{class:'val'},[document.createTextNode(String(val))])]);
+  const input = el('input',{type:'range', min:min, max:max, step: step||1, value:val});
+  input.addEventListener('input',()=>{
+    l.querySelector('.val').textContent = input.value;
+  });
+  input.addEventListener('change',()=>{
+    pushUndo();
+    onchange(parseFloat(input.value));
+    renderStageOnly();
+  });
+  f.appendChild(l); f.appendChild(input);
+  return f;
+}
+
+/* -------------------------------------------------------------- filmstrip */
+
+function renderFilmstrip(){
+  const bar = el('div',{class:'filmstrip'});
+  bar.appendChild(el('div',{class:'fs-label'},[document.createTextNode('Sections')]));
+  state.sections.forEach((s,i)=>{
+    const swatchColor = s.id==='hero'?'var(--coral)': s.id==='manifeste'?'var(--peach)': s.id==='expression'?'var(--rose)': s.id==='pourqui'?'#D8CBB8':'#C9C2B4';
+    const card = el('div',{class:'fs-card'+(currentSection===s.id?' current':''), onclick:()=>{ currentSection=s.id; state.selectedId=null; render(); }},[
+      el('div',{class:'fs-swatch', style:{background:swatchColor, opacity: s.visible?1:.3}}),
+      el('div',{class:'fs-meta'},[
+        el('div',{class:'t'},[document.createTextNode(s.label)]),
+        el('div',{class:'n'},[document.createTextNode(state.elements.filter(e=>e.section===s.id).length+' elements')]),
+      ]),
+    ]);
+    const moves = el('div',{class:'fs-moves'},[
+      el('button',{onclick:(ev)=>{ ev.stopPropagation(); moveSection(i,-1); }},[document.createTextNode('▲')]),
+      el('button',{onclick:(ev)=>{ ev.stopPropagation(); moveSection(i,1); }},[document.createTextNode('▼')]),
+    ]);
+    card.appendChild(moves);
+    card.appendChild(el('button',{class:'fs-eye'+(s.visible?'':' off'), onclick:(ev)=>{ ev.stopPropagation(); pushUndo(); s.visible=!s.visible; render(); }},
+      [document.createTextNode(s.visible?'●':'○')]));
+    bar.appendChild(card);
+  });
+  return bar;
+}
+function moveSection(i, dir){
+  const j = i+dir;
+  if(j<0 || j>=state.sections.length) return;
+  pushUndo();
+  const arr = state.sections;
+  [arr[i],arr[j]] = [arr[j],arr[i]];
+  render();
+}
+
+/* --------------------------------------------------------------- publish */
+
+function startPublish(){
+  state.publishing = { steps:[
+    {label:'Contenu sauvegarde', done:false},
+    {label:'Version creee (release)', done:false},
+    {label:'Site en construction', done:false},
+    {label:'Verifications reussies', done:false},
+    {label:'Site publie', done:false},
+  ], activeIdx:0, failed:false };
+  render();
+  runPublishStep();
+}
+function runPublishStep(){
+  const pub = state.publishing;
+  if(!pub) return;
+  setTimeout(()=>{
+    if(pub.activeIdx >= pub.steps.length){
+      pub.finished = true;
+      state.dirty = false;
+      state.history.forEach(h=>h.active=false);
+      state.history.unshift({label:'Version actuelle', when:'a l\'instant', active:true});
+      render();
+      return;
+    }
+    pub.steps[pub.activeIdx].done = true;
+    pub.activeIdx++;
+    render();
+    runPublishStep();
+  }, 650);
+}
+function renderPublishModal(){
+  const pub = state.publishing;
+  const bg = el('div',{class:'modal-bg'});
+  const modal = el('div',{class:'modal'});
+  modal.appendChild(el('h3',{},[document.createTextNode(pub.finished ? 'Site publie' : 'Publication en cours')]));
+  modal.appendChild(el('div',{class:'sub'},[document.createTextNode('atelierexpression.ca')]));
+  pub.steps.forEach((s,i)=>{
+    const cls = s.done ? 'done' : (i===pub.activeIdx && !pub.finished ? 'active' : '');
+    modal.appendChild(el('div',{class:'step '+cls},[
+      el('div',{class:'mark'},[document.createTextNode(s.done?'✓':'')]),
+      document.createTextNode(s.label),
+    ]));
+  });
+  const actions = el('div',{class:'modal-actions'});
+  if(pub.finished){
+    actions.appendChild(el('button',{class:'btn', onclick:()=>{ state.publishing=null; render(); }},[document.createTextNode('Fermer')]));
+    actions.appendChild(el('button',{class:'btn primary', onclick:()=>{ state.publishing=null; render(); }},[document.createTextNode('Voir le site')]));
+  } else {
+    actions.appendChild(el('button',{class:'btn', disabled:'disabled'},[document.createTextNode('Publication...')]));
+  }
+  modal.appendChild(actions);
+  bg.appendChild(modal);
+  return bg;
+}
+
+/* fit frame to available stage width */
+function fitFrame(){
+  const frame = frameEl();
+  const stage = document.querySelector('.stage');
+  if(!frame || !stage) return;
+  const fw = FRAME_W[state.breakpoint];
+  const available = stage.clientWidth - 60;
+  const scale = Math.min(1, available/fw);
+  frame.style.transform = 'scale('+scale+')';
+  const wrap = frame.closest('.frame-wrap');
+  wrap.style.width = (fw*scale)+'px';
+  wrap.style.height = (frame.offsetHeight*scale)+'px';
+}
+
+render();
+fitFrame();
+window.addEventListener('resize', fitFrame);
+const _origRender = render;
+render = function(){ _origRender(); requestAnimationFrame(fitFrame); };
+</script>
+</body>
+</html>
