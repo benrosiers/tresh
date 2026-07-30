@@ -54,13 +54,54 @@ function initials(value: string): string {
 }
 
 export function Topbar() {
-  const { state, dispatch } = useEditor();
+  const { state, dispatch, saveNow } = useEditor();
   const { mode, user, profile, passwordRecovery } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     if (passwordRecovery) setAccountOpen(true);
   }, [passwordRecovery]);
+
+  useEffect(() => {
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      const isSaveShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === 's';
+
+      if (!isSaveShortcut) return;
+
+      event.preventDefault();
+
+      if (state.cloud.status === 'saving') return;
+
+      void saveNow().catch(() => {
+        // L’état d’erreur est déjà conservé dans le store.
+      });
+    };
+
+    window.addEventListener('keydown', handleSaveShortcut);
+
+    return () => {
+      window.removeEventListener('keydown', handleSaveShortcut);
+    };
+  }, [saveNow, state.cloud.status]);
+
+  const saveButtonLabel =
+    state.cloud.status === 'saving'
+      ? 'Enregistrement…'
+      : state.cloud.status === 'error' || state.cloud.status === 'conflict'
+        ? 'Erreur'
+        : state.dirty
+          ? 'Enregistrer'
+          : 'Enregistré';
+
+  const saveButtonDisabled =
+    state.cloud.status === 'saving' ||
+    (
+      !state.dirty &&
+      state.cloud.status !== 'error' &&
+      state.cloud.status !== 'conflict'
+    );
 
   const accountLabel = profile.displayName || user?.email?.split('@')[0] || 'Compte';
   const accountInitials = useMemo(() => initials(accountLabel), [accountLabel]);
@@ -121,6 +162,19 @@ export function Topbar() {
             onClick={() => dispatch({ type: 'history/redo' })}
           >
             Rétablir
+          </button>
+          <button
+            type="button"
+            className="editor-button editor-button--ghost"
+            disabled={saveButtonDisabled}
+            title="Enregistrer maintenant (Ctrl+S)"
+            onClick={() => {
+              void saveNow().catch(() => {
+                // L’état d’erreur est déjà conservé dans le store.
+              });
+            }}
+          >
+            {saveButtonLabel}
           </button>
           <button
             type="button"

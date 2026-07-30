@@ -2,6 +2,7 @@ import {
   createContext,
   type Dispatch,
   type PropsWithChildren,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -86,7 +87,7 @@ export type EditorAction =
   | { type: 'draft/hydrate'; document: SiteDocument; pageId: string; lockVersion: number; savedAt: number }
   | { type: 'draft/saving' }
   | { type: 'draft/local-cached'; savedAt: number }
-  | { type: 'draft/saved'; savedAt: number; lockVersion: number | null }
+  | { type: 'draft/saved'; savedAt: number; lockVersion: number | null; document: SiteDocument }
   | { type: 'draft/error'; message: string }
   | { type: 'draft/conflict'; message: string }
   | { type: 'draft/reset' }
@@ -96,6 +97,7 @@ export type EditorAction =
 interface EditorContextValue {
   state: EditorState;
   dispatch: Dispatch<EditorAction>;
+  saveNow: () => Promise<void>;
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null);
@@ -315,14 +317,14 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case 'draft/saved':
       return {
         ...state,
-        dirty: false,
+        dirty: state.document !== action.document,
         savedAt: action.savedAt,
         cloud: action.lockVersion === null
           ? { ...state.cloud, status: 'local', message: null }
           : { ...state.cloud, status: 'saved', lockVersion: action.lockVersion, message: null },
       };
     case 'draft/error':
-      return { ...state, dirty: false, cloud: { ...state.cloud, status: 'error', message: action.message } };
+      return { ...state, dirty: true, cloud: { ...state.cloud, status: 'error', message: action.message } };
     case 'draft/conflict':
       return { ...state, dirty: true, cloud: { ...state.cloud, status: 'conflict', message: action.message } };
     case 'draft/reset': {
@@ -356,6 +358,76 @@ export function EditorProvider({ children }: PropsWithChildren) {
     promise: ReturnType<typeof loadCloudDraft>;
     applied: boolean;
   } | null>(null);
+
+  const saveNow = useCallback(async (): Promise<void> => {
+    const document = state.document;
+    const savedAt = Date.now();
+
+    saveLocalDraft({
+      document,
+      savedAt,
+    });
+
+    if (authMode !== 'signed-in') {
+      dispatch({
+        type: 'draft/saved',
+        savedAt,
+        lockVersion: null,
+        document,
+      });
+      return;
+    }
+
+    if (!state.cloud.pageId) {
+      dispatch({
+        type: 'draft/local-cached',
+        savedAt,
+      });
+
+      throw new Error('La page Tresh n’est pas prête pour la synchronisation.');
+    }
+
+    dispatch({ type: 'draft/saving' });
+
+    try {
+      const saved = await saveCloudDraft(
+        state.cloud.pageId,
+        document,
+        state.cloud.lockVersion,
+      );
+
+      dispatch({
+        type: 'draft/saved',
+        savedAt: saved.updatedAt,
+        lockVersion: saved.lockVersion,
+        document,
+      });
+    } catch (error: unknown) {
+      if (error instanceof DraftConflictError) {
+        dispatch({
+          type: 'draft/conflict',
+          message: error.message,
+        });
+      } else {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Impossible de synchroniser le brouillon.';
+
+        dispatch({
+          type: 'draft/error',
+          message,
+        });
+      }
+
+      throw error;
+    }
+  }, [
+    authMode,
+    state.cloud.lockVersion,
+    state.cloud.pageId,
+    state.document,
+  ]);
 
   useEffect(() => {
     if (authMode !== 'signed-in' || !user) return;
@@ -420,39 +492,21 @@ export function EditorProvider({ children }: PropsWithChildren) {
   }, [authMode, user]);
 
   useEffect(() => {
-    if (!state.dirty) return;
+    if (!state.dirty || state.cloud.status === 'saving') return;
+
     const handle = window.setTimeout(() => {
-      const savedAt = Date.now();
-      saveLocalDraft({ document: state.document, savedAt });
-
-      if (authMode !== 'signed-in' || !state.cloud.pageId) {
-        if (authMode === 'signed-in' && state.cloud.status === 'loading') {
-          dispatch({ type: 'draft/local-cached', savedAt });
-        } else {
-          dispatch({ type: 'draft/saved', savedAt, lockVersion: null });
-        }
-        return;
-      }
-
-      dispatch({ type: 'draft/saving' });
-      void saveCloudDraft(state.cloud.pageId, state.document, state.cloud.lockVersion)
-        .then((saved) => {
-          dispatch({ type: 'draft/saved', savedAt: saved.updatedAt, lockVersion: saved.lockVersion });
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DraftConflictError) {
-            dispatch({ type: 'draft/conflict', message: error.message });
-            return;
-          }
-          const message = error instanceof Error ? error.message : 'Impossible de synchroniser le brouillon.';
-          dispatch({ type: 'draft/error', message });
-        });
-    }, 800);
+      void saveNow().catch(() => {
+        // L’état d’erreur est déjà enregistré dans le store.
+      });
+    }, 5000);
 
     return () => window.clearTimeout(handle);
-  }, [authMode, state.cloud.lockVersion, state.cloud.pageId, state.dirty, state.document]);
+  }, [saveNow, state.cloud.status, state.dirty, state.document]);
 
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+  const value = useMemo(
+    () => ({ state, dispatch, saveNow }),
+    [state, saveNow],
+  );
   return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
 }
 

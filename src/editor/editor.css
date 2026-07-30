@@ -1002,3 +1002,188 @@
 .publish-modal__actions {
   gap: 9px;
 }
+
+/* TRESH_CANVAS_ZOOM_START */
+
+.stage {
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  justify-content: stretch;
+  overflow: hidden;
+  padding: 0;
+  background: var(--editor-ink);
+}
+
+.canvas-toolbar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--editor-line);
+  background: var(--editor-panel);
+  scrollbar-width: none;
+}
+
+.canvas-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.canvas-toolbar__button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--editor-line);
+  border-radius: 7px;
+  background: var(--editor-panel-2);
+  color: var(--editor-paper);
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.canvas-toolbar__button:hover:not(:disabled) {
+  border-color: var(--editor-accent);
+  color: var(--editor-accent);
+}
+
+.canvas-toolbar__button:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.canvas-toolbar__button--text {
+  width: auto;
+  min-width: 58px;
+  padding: 0 10px;
+  font-size: 10.5px;
+}
+
+.canvas-toolbar__button.is-active {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent-dim);
+  color: var(--editor-accent);
+}
+
+.canvas-toolbar__divider {
+  width: 1px;
+  height: 21px;
+  flex: none;
+  margin-inline: 3px;
+  background: var(--editor-line);
+}
+
+.canvas-zoom-slider {
+  width: 150px;
+  flex: none;
+  accent-color: var(--editor-accent);
+  cursor: pointer;
+}
+
+.canvas-zoom-value {
+  width: 52px;
+  flex: none;
+  color: var(--editor-accent);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.canvas-toolbar__hint {
+  margin-left: auto;
+  color: var(--editor-steel-low);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.canvas-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 38px 36px 68px;
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+  background:
+    radial-gradient(
+      circle at 1px 1px,
+      var(--editor-line) 1px,
+      transparent 0
+    ) 0 0 / 22px 22px,
+    var(--editor-ink);
+}
+
+.canvas-surface {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.canvas-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.canvas-viewport::-webkit-scrollbar-track {
+  background: var(--editor-ink);
+}
+
+.canvas-viewport::-webkit-scrollbar-thumb {
+  border: 3px solid var(--editor-ink);
+  border-radius: 999px;
+  background: var(--editor-steel-low);
+}
+
+.canvas-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--editor-steel);
+}
+
+.canvas-viewport::-webkit-scrollbar-corner {
+  background: var(--editor-ink);
+}
+
+@media (max-width: 1120px) {
+  .canvas-toolbar__hint {
+    display: none;
+  }
+
+  .canvas-zoom-slider {
+    width: 110px;
+  }
+}
+
+@media (max-width: 820px) {
+  .stage {
+    padding: 0;
+  }
+
+  .canvas-toolbar {
+    justify-content: flex-start;
+    padding-inline: 9px;
+  }
+
+  .canvas-viewport {
+    padding: 38px 18px 68px;
+  }
+
+  .canvas-zoom-slider {
+    width: 90px;
+  }
+}
+
+/* TRESH_CANVAS_ZOOM_END */
