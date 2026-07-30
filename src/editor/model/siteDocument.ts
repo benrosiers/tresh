@@ -2,10 +2,42 @@ import { z } from 'zod';
 
 export type Breakpoint = 'desktop' | 'tablet' | 'mobile';
 
+export type ShapeKind =
+  | 'rectangle'
+  | 'square'
+  | 'circle'
+  | 'ellipse'
+  | 'triangle'
+  | 'diamond'
+  | 'star'
+  | 'line';
+
+export interface ElementShadow {
+  enabled: boolean;
+  color: string;
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  opacity: number;
+}
+
+export interface ElementGlow {
+  enabled: boolean;
+  color: string;
+  blur: number;
+  intensity: number;
+}
+
+export interface ElementEffects {
+  shadow?: ElementShadow;
+  glow?: ElementGlow;
+}
+
 export interface Placement {
   xPercent: number;
   yPercent: number;
   widthPercent: number;
+  heightPercent?: number;
   rotationDegrees: number;
   zIndex: number;
   opacity: number;
@@ -27,6 +59,7 @@ interface SceneElementBase {
   placement: ResponsivePlacement;
   visible: boolean;
   locked: boolean;
+  effects?: ElementEffects;
 }
 
 export interface TextElement extends SceneElementBase {
@@ -48,6 +81,7 @@ export interface ImageElement extends SceneElementBase {
 export interface PaintElement extends SceneElementBase {
   type: 'paint';
   assetKey: 'coral' | 'rose' | 'peach';
+  customColor?: string;
   decorative: true;
 }
 
@@ -58,7 +92,21 @@ export interface ButtonElement extends SceneElementBase {
   variant: 'primary' | 'secondary' | 'text';
 }
 
-export type SceneElement = TextElement | ImageElement | PaintElement | ButtonElement;
+export interface ShapeElement extends SceneElementBase {
+  type: 'shape';
+  shapeKind: ShapeKind;
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  cornerRadius: number;
+}
+
+export type SceneElement =
+  | TextElement
+  | ImageElement
+  | PaintElement
+  | ButtonElement
+  | ShapeElement;
 
 export interface SectionDocument {
   id: string;
@@ -84,12 +132,18 @@ export interface SiteDocument {
   pages: PageDocument[];
 }
 
+const hexColorSchema = z.string().regex(
+  /^#[0-9a-fA-F]{6}$/,
+  'La couleur doit utiliser le format #RRGGBB.',
+);
+
 export const breakpointSchema = z.enum(['desktop', 'tablet', 'mobile']);
 
 export const placementSchema = z.object({
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
   widthPercent: z.number().positive().max(100),
+  heightPercent: z.number().positive().max(100).optional(),
   rotationDegrees: z.number().min(-360).max(360).default(0),
   zIndex: z.number().int().min(0).max(100).default(0),
   opacity: z.number().min(0).max(1).default(1),
@@ -105,12 +159,34 @@ export const responsivePlacementSchema = z.object({
 
 const localizedTextSchema = z.record(z.string().min(2), z.string());
 
+const elementShadowSchema = z.object({
+  enabled: z.boolean().default(false),
+  color: hexColorSchema.default('#000000'),
+  offsetX: z.number().min(-100).max(100),
+  offsetY: z.number().min(-100).max(100),
+  blur: z.number().min(0).max(160),
+  opacity: z.number().min(0).max(1),
+});
+
+const elementGlowSchema = z.object({
+  enabled: z.boolean().default(false),
+  color: hexColorSchema.default('#57D9C4'),
+  blur: z.number().min(0).max(160),
+  intensity: z.number().min(0).max(1),
+});
+
+const elementEffectsSchema = z.object({
+  shadow: elementShadowSchema.optional(),
+  glow: elementGlowSchema.optional(),
+});
+
 const sceneElementBaseSchema = z.object({
   id: z.string().min(1),
   sectionId: z.string().min(1),
   placement: responsivePlacementSchema,
   visible: z.boolean().default(true),
   locked: z.boolean().default(false),
+  effects: elementEffectsSchema.optional(),
 });
 
 const textElementSchema = sceneElementBaseSchema.extend({
@@ -133,6 +209,7 @@ const imageElementSchema = sceneElementBaseSchema.extend({
 const paintElementSchema = sceneElementBaseSchema.extend({
   type: z.literal('paint'),
   assetKey: z.enum(['coral', 'rose', 'peach']),
+  customColor: hexColorSchema.optional(),
   decorative: z.literal(true),
 });
 
@@ -143,11 +220,30 @@ const buttonElementSchema = sceneElementBaseSchema.extend({
   variant: z.enum(['primary', 'secondary', 'text']),
 });
 
+const shapeElementSchema = sceneElementBaseSchema.extend({
+  type: z.literal('shape'),
+  shapeKind: z.enum([
+    'rectangle',
+    'square',
+    'circle',
+    'ellipse',
+    'triangle',
+    'diamond',
+    'star',
+    'line',
+  ]),
+  fillColor: hexColorSchema,
+  strokeColor: hexColorSchema,
+  strokeWidth: z.number().min(0).max(40).default(0),
+  cornerRadius: z.number().min(0).max(50).default(0),
+});
+
 export const sceneElementSchema = z.discriminatedUnion('type', [
   textElementSchema,
   imageElementSchema,
   paintElementSchema,
   buttonElementSchema,
+  shapeElementSchema,
 ]);
 
 export const sectionDocumentSchema = z.object({

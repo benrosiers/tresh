@@ -1187,3 +1187,119 @@
 }
 
 /* TRESH_CANVAS_ZOOM_END */
+
+/* TRESH_SHAPES_EFFECTS_START */
+
+.canvas-element--shape {
+  cursor: grab;
+}
+
+.shape-node {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.inspector-field select {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
+  outline: none;
+  background: var(--editor-panel-2);
+  color: var(--editor-paper);
+  font-size: 12px;
+}
+
+.inspector-field select:focus {
+  border-color: var(--editor-accent);
+}
+
+.color-field {
+  display: grid !important;
+  grid-template-columns: 38px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 7px;
+  margin: 0 !important;
+}
+
+.color-field__native {
+  width: 38px !important;
+  height: 32px;
+  min-width: 38px;
+  padding: 2px !important;
+  border: 1px solid var(--editor-line) !important;
+  border-radius: 6px !important;
+  background: var(--editor-panel-2) !important;
+  cursor: pointer;
+}
+
+.color-field__native::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-field__native::-webkit-color-swatch {
+  border: 0;
+  border-radius: 4px;
+}
+
+.color-field__text {
+  width: 100% !important;
+  min-width: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  text-transform: uppercase;
+}
+
+.color-field__pipette {
+  display: grid;
+  width: 34px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
+  background: var(--editor-panel-2);
+  color: var(--editor-accent);
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.color-field__pipette:hover:not(:disabled) {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent-dim);
+}
+
+.color-field__pipette:disabled {
+  cursor: default;
+  color: var(--editor-steel-low);
+  opacity: 0.35;
+}
+
+.effect-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 4px 0 12px;
+  color: var(--editor-paper);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.effect-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--editor-accent);
+}
+
+.effect-controls {
+  margin: 0 0 17px;
+  padding: 11px;
+  border: 1px solid var(--editor-line);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 10%);
+}
+
+/* TRESH_SHAPES_EFFECTS_END */

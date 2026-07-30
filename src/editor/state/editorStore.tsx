@@ -94,10 +94,15 @@ export type EditorAction =
   | { type: 'publish-notice/open' }
   | { type: 'publish-notice/close' };
 
+interface SaveResult {
+  document: SiteDocument;
+  lockVersion: number | null;
+}
+
 interface EditorContextValue {
   state: EditorState;
   dispatch: Dispatch<EditorAction>;
-  saveNow: () => Promise<void>;
+  saveNow: () => Promise<number | null>;
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null);
@@ -359,75 +364,120 @@ export function EditorProvider({ children }: PropsWithChildren) {
     applied: boolean;
   } | null>(null);
 
-  const saveNow = useCallback(async (): Promise<void> => {
-    const document = state.document;
+  const stateRef = useRef(state);
+  const saveInFlightRef = useRef<Promise<SaveResult> | null>(null);
+  const cloudLockVersionRef = useRef(state.cloud.lockVersion);
+
+  stateRef.current = state;
+
+  if (!saveInFlightRef.current) {
+    cloudLockVersionRef.current = state.cloud.lockVersion;
+  }
+
+  const saveOnce = useCallback((): Promise<SaveResult> => {
+    if (saveInFlightRef.current) {
+      return saveInFlightRef.current;
+    }
+
+    const snapshot = stateRef.current;
+    const document = snapshot.document;
     const savedAt = Date.now();
 
-    saveLocalDraft({
-      document,
-      savedAt,
-    });
-
-    if (authMode !== 'signed-in') {
-      dispatch({
-        type: 'draft/saved',
-        savedAt,
-        lockVersion: null,
+    const task = (async (): Promise<SaveResult> => {
+      saveLocalDraft({
         document,
-      });
-      return;
-    }
-
-    if (!state.cloud.pageId) {
-      dispatch({
-        type: 'draft/local-cached',
         savedAt,
       });
 
-      throw new Error('La page Tresh n’est pas prête pour la synchronisation.');
-    }
-
-    dispatch({ type: 'draft/saving' });
-
-    try {
-      const saved = await saveCloudDraft(
-        state.cloud.pageId,
-        document,
-        state.cloud.lockVersion,
-      );
-
-      dispatch({
-        type: 'draft/saved',
-        savedAt: saved.updatedAt,
-        lockVersion: saved.lockVersion,
-        document,
-      });
-    } catch (error: unknown) {
-      if (error instanceof DraftConflictError) {
+      if (authMode !== 'signed-in') {
         dispatch({
-          type: 'draft/conflict',
-          message: error.message,
+          type: 'draft/saved',
+          savedAt,
+          lockVersion: null,
+          document,
         });
-      } else {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Impossible de synchroniser le brouillon.';
 
-        dispatch({
-          type: 'draft/error',
-          message,
-        });
+        return {
+          document,
+          lockVersion: null,
+        };
       }
 
-      throw error;
+      const pageId = snapshot.cloud.pageId;
+
+      if (!pageId) {
+        dispatch({
+          type: 'draft/local-cached',
+          savedAt,
+        });
+
+        throw new Error(
+          'La page Tresh n’est pas prête pour la synchronisation.',
+        );
+      }
+
+      dispatch({ type: 'draft/saving' });
+
+      try {
+        const saved = await saveCloudDraft(
+          pageId,
+          document,
+          cloudLockVersionRef.current,
+        );
+
+        cloudLockVersionRef.current = saved.lockVersion;
+
+        dispatch({
+          type: 'draft/saved',
+          savedAt: saved.updatedAt,
+          lockVersion: saved.lockVersion,
+          document,
+        });
+
+        return {
+          document,
+          lockVersion: saved.lockVersion,
+        };
+      } catch (error: unknown) {
+        if (error instanceof DraftConflictError) {
+          dispatch({
+            type: 'draft/conflict',
+            message: error.message,
+          });
+        } else {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Impossible de synchroniser le brouillon.';
+
+          dispatch({
+            type: 'draft/error',
+            message,
+          });
+        }
+
+        throw error;
+      }
+    })();
+
+    const trackedTask = task.finally(() => {
+      saveInFlightRef.current = null;
+    });
+
+    saveInFlightRef.current = trackedTask;
+
+    return trackedTask;
+  }, [authMode]);
+
+  const saveNow = useCallback(async (): Promise<number | null> => {
+    let saved = await saveOnce();
+
+    while (stateRef.current.document !== saved.document) {
+      saved = await saveOnce();
     }
-  }, [
-    authMode,
-    state.cloud.lockVersion,
-    state.cloud.pageId,
-    state.document,
-  ]);
+
+    return saved.lockVersion;
+  }, [saveOnce]);
 
   useEffect(() => {
     if (authMode !== 'signed-in' || !user) return;
@@ -517,11 +567,39 @@ export function useEditor(): EditorContextValue {
 }
 
 export function createElementForTool(
-  tool: 'heading' | 'text' | 'button' | 'image' | 'paint' | 'section',
+  tool: 'heading' | 'text' | 'button' | 'image' | 'paint' | 'shape' | 'section',
   sectionId: string,
 ): SceneElement | null {
   if (tool === 'section') return null;
   const id = `${tool}-${crypto.randomUUID().slice(0, 8)}`;
+
+  if (tool === 'shape') {
+    return {
+      id,
+      sectionId,
+      type: 'shape',
+      shapeKind: 'rectangle',
+      fillColor: '#E98B5F',
+      strokeColor: '#2B2620',
+      strokeWidth: 0,
+      cornerRadius: 12,
+      placement: {
+        desktop: {
+          xPercent: 50,
+          yPercent: 50,
+          widthPercent: 24,
+          heightPercent: 18,
+          rotationDegrees: 0,
+          zIndex: 5,
+          opacity: 1,
+          parallaxDepth: 0,
+        },
+      },
+      visible: true,
+      locked: false,
+    };
+  }
+
   const placement = {
     desktop: {
       xPercent: 46,

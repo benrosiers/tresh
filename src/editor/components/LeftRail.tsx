@@ -9,6 +9,7 @@ const tools = [
   { id: 'button', label: 'Bouton', glyph: '▭' },
   { id: 'image', label: 'Image', glyph: '▨' },
   { id: 'paint', label: 'Peinture', glyph: '◐' },
+  { id: 'shape', label: 'Forme', glyph: '◯' },
   { id: 'section', label: 'Section', glyph: '▤' },
 ] as const;
 

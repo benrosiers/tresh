@@ -58,4 +58,125 @@ describe('site document contract', () => {
       fontSize: 24,
     });
   });
+
+  it('accepts geometric shapes with shadow and glow effects', () => {
+    const page = validDocument.pages[0];
+    if (!page) throw new Error('Initial page missing.');
+
+    const section = page.sections[0];
+    if (!section) throw new Error('Initial section missing.');
+
+    const document = {
+      ...validDocument,
+      pages: [
+        {
+          ...page,
+          sections: [
+            {
+              ...section,
+              scene: [
+                {
+                  id: 'shape-rectangle',
+                  sectionId: section.id,
+                  type: 'shape',
+                  shapeKind: 'rectangle',
+                  fillColor: '#E98B5F',
+                  strokeColor: '#2B2620',
+                  strokeWidth: 2,
+                  cornerRadius: 12,
+                  placement: {
+                    desktop: {
+                      xPercent: 50,
+                      yPercent: 50,
+                      widthPercent: 30,
+                      heightPercent: 20,
+                      rotationDegrees: 15,
+                      zIndex: 4,
+                      opacity: 0.9,
+                    },
+                  },
+                  visible: true,
+                  locked: false,
+                  effects: {
+                    shadow: {
+                      enabled: true,
+                      color: '#000000',
+                      offsetX: 0,
+                      offsetY: 12,
+                      blur: 24,
+                      opacity: 0.4,
+                    },
+                    glow: {
+                      enabled: true,
+                      color: '#57D9C4',
+                      blur: 30,
+                      intensity: 0.7,
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const parsed = parseSiteDocument(document);
+
+    expect(parsed.pages[0]?.sections[0]?.scene[0]).toMatchObject({
+      type: 'shape',
+      shapeKind: 'rectangle',
+      fillColor: '#E98B5F',
+    });
+  });
+
+  it('rejects malformed element colors', () => {
+    const page = validDocument.pages[0];
+    if (!page) throw new Error('Initial page missing.');
+
+    const section = page.sections[0];
+    if (!section) throw new Error('Initial section missing.');
+
+    const document = {
+      ...validDocument,
+      pages: [
+        {
+          ...page,
+          sections: [
+            {
+              ...section,
+              scene: [
+                {
+                  id: 'shape-invalid',
+                  sectionId: section.id,
+                  type: 'shape',
+                  shapeKind: 'circle',
+                  fillColor: 'orange',
+                  strokeColor: '#000000',
+                  strokeWidth: 0,
+                  cornerRadius: 0,
+                  placement: {
+                    desktop: {
+                      xPercent: 50,
+                      yPercent: 50,
+                      widthPercent: 20,
+                      heightPercent: 20,
+                      rotationDegrees: 0,
+                      zIndex: 1,
+                      opacity: 1,
+                    },
+                  },
+                  visible: true,
+                  locked: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(() => parseSiteDocument(document)).toThrow();
+  });
+
 });

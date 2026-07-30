@@ -4,12 +4,20 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import Moveable from 'react-moveable';
 import { findElement, getPage, resolvePlacement } from '../model/documentOps';
-import type { Placement, SceneElement, SectionDocument } from '../model/siteDocument';
+import type {
+  Placement,
+  SceneElement,
+  SectionDocument,
+  ShapeElement,
+  ShapeKind,
+} from '../model/siteDocument';
 import { useEditor } from '../state/editorStore';
 import { FRAME_WIDTH, PAINT_COLORS } from './editorConstants';
 
@@ -62,6 +70,132 @@ function localized(element: Extract<SceneElement, { type: 'text' }>): string {
   return element.text['fr-CA'] ?? '';
 }
 
+const FIXED_RATIO_SHAPES: ShapeKind[] = [
+  'square',
+  'circle',
+  'triangle',
+  'diamond',
+  'star',
+];
+
+function hexToRgba(color: string, opacity: number): string {
+  const normalized = color.replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return `rgba(0, 0, 0, ${opacity})`;
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${clamp(opacity, 0, 1)})`;
+}
+
+function resolveEffectsFilter(element: SceneElement): string | undefined {
+  const filters: string[] = [];
+  const shadow = element.effects?.shadow;
+  if (shadow?.enabled) {
+    filters.push(
+      `drop-shadow(${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blur}px ${hexToRgba(
+        shadow.color,
+        shadow.opacity,
+      )})`,
+    );
+  }
+
+  const glow = element.effects?.glow;
+  if (glow?.enabled) {
+    filters.push(
+      `drop-shadow(0 0 ${Math.max(1, glow.blur * 0.45)}px ${hexToRgba(
+        glow.color,
+        glow.intensity,
+      )})`,
+    );
+    filters.push(
+      `drop-shadow(0 0 ${glow.blur}px ${hexToRgba(
+        glow.color,
+        glow.intensity * 0.65,
+      )})`,
+    );
+  }
+
+  return filters.length > 0 ? filters.join(' ') : undefined;
+}
+
+function ShapeSvg({ element }: { element: ShapeElement }) {
+  const stroke = element.strokeWidth > 0 ? element.strokeColor : 'none';
+  const shared = {
+    fill: element.fillColor,
+    stroke,
+    strokeWidth: element.strokeWidth,
+    vectorEffect: 'non-scaling-stroke' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  let content: ReactNode = null;
+
+  switch (element.shapeKind) {
+    case 'rectangle':
+    case 'square':
+      content = (
+        <rect
+          x="2"
+          y="2"
+          width="96"
+          height="96"
+          rx={element.cornerRadius}
+          ry={element.cornerRadius}
+          {...shared}
+        />
+      );
+      break;
+    case 'circle':
+      content = <circle cx="50" cy="50" r="48" {...shared} />;
+      break;
+    case 'ellipse':
+      content = <ellipse cx="50" cy="50" rx="48" ry="46" {...shared} />;
+      break;
+    case 'triangle':
+      content = <polygon points="50,2 98,98 2,98" {...shared} />;
+      break;
+    case 'diamond':
+      content = <polygon points="50,2 98,50 50,98 2,50" {...shared} />;
+      break;
+    case 'star':
+      content = (
+        <polygon
+          points="50,2 61,35 96,35 68,56 79,92 50,71 21,92 32,56 4,35 39,35"
+          {...shared}
+        />
+      );
+      break;
+    case 'line':
+      content = (
+        <line
+          x1="3"
+          y1="50"
+          x2="97"
+          y2="50"
+          stroke={element.strokeColor}
+          strokeWidth={Math.max(1, element.strokeWidth || 4)}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      );
+      break;
+  }
+
+  return (
+    <svg
+      className="shape-node"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {content}
+    </svg>
+  );
+}
+
 function ElementNode({
   element,
   selected,
@@ -80,14 +214,30 @@ function ElementNode({
   const { state } = useEditor();
   const placement = resolvePlacement(element.placement, state.breakpoint);
 
-  const commonStyle = {
+  const fixedRatioShape =
+    element.type === 'shape' && FIXED_RATIO_SHAPES.includes(element.shapeKind);
+
+  const commonStyle: CSSProperties = {
     left: `${placement.xPercent}%`,
     top: `${placement.yPercent}%`,
     width: `${placement.widthPercent}%`,
+    height:
+      element.type === 'shape' && !fixedRatioShape
+        ? `${placement.heightPercent ?? 18}%`
+        : undefined,
     opacity: placement.opacity,
     zIndex: placement.zIndex,
+    filter: resolveEffectsFilter(element),
     transform: `translate(-50%, -50%) rotate(${placement.rotationDegrees}deg)`,
   };
+
+  if (fixedRatioShape) {
+    commonStyle.aspectRatio = '1';
+  } else if (element.type === 'paint') {
+    commonStyle.aspectRatio = '1';
+  } else if (element.type === 'image') {
+    commonStyle.aspectRatio = '0.82';
+  }
 
   const commonProps = {
     'data-element-id': element.id,
@@ -106,8 +256,18 @@ function ElementNode({
       <div {...commonProps} aria-label={`Peinture ${element.assetKey}`}>
         <div
           className="paint-blob"
-          style={{ background: PAINT_COLORS[element.assetKey] }}
+          style={{
+            background: element.customColor ?? PAINT_COLORS[element.assetKey],
+          }}
         />
+      </div>
+    );
+  }
+
+  if (element.type === 'shape') {
+    return (
+      <div {...commonProps} aria-label={`Forme ${element.shapeKind}`}>
+        <ShapeSvg element={element} />
       </div>
     );
   }
@@ -119,13 +279,7 @@ function ElementNode({
         : undefined;
 
     return (
-      <div
-        {...commonProps}
-        style={{
-          ...commonStyle,
-          aspectRatio: '0.82',
-        }}
-      >
+      <div {...commonProps}>
         {source ? (
           <img
             src={source}
@@ -467,6 +621,10 @@ export function CanvasStage() {
     setManualZoom(zoomPercent + direction);
   };
 
+  const fixedRatioShape =
+    selectedElement?.type === 'shape' &&
+    FIXED_RATIO_SHAPES.includes(selectedElement.shapeKind);
+
   return (
     <main
       className="stage"
@@ -647,7 +805,8 @@ export function CanvasStage() {
                   rotatable
                   keepRatio={
                     selectedElement.type === 'paint' ||
-                    selectedElement.type === 'image'
+                    selectedElement.type === 'image' ||
+                    fixedRatioShape
                   }
                   origin={false}
                   edge
@@ -694,7 +853,7 @@ export function CanvasStage() {
                       dragY = 0,
                     ] = event.drag.beforeTranslate;
 
-                    livePatch({
+                    const patch: Partial<Placement> = {
                       widthPercent: clamp(
                         (event.width /
                           start.sectionWidth) *
@@ -718,7 +877,20 @@ export function CanvasStage() {
                         0,
                         100,
                       ),
-                    });
+                    };
+
+                    if (
+                      selectedElement.type === 'shape' &&
+                      !fixedRatioShape
+                    ) {
+                      patch.heightPercent = clamp(
+                        (event.height / start.sectionHeight) * 100,
+                        1,
+                        100,
+                      );
+                    }
+
+                    livePatch(patch);
                   }}
                   onResizeEnd={endInteraction}
                   onRotateStart={startInteraction}
