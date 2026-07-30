@@ -339,3 +339,61 @@
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+
+.password-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-card .password-field > label,
+.account-form .password-field > label {
+  color: #8b93a1;
+  font-size: 12px;
+}
+
+.password-input {
+  position: relative;
+}
+
+.auth-card .password-input input,
+.account-form .password-input input {
+  padding-right: 50px;
+}
+
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #8b93a1;
+  cursor: pointer;
+}
+
+.password-input__toggle:hover {
+  background: rgb(255 255 255 / 6%);
+  color: #f4f1ec;
+}
+
+.password-input__toggle:focus-visible {
+  outline: 2px solid #57d9c4;
+  outline-offset: 1px;
+}
+
+.password-input__toggle svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { useAuth } from './AuthProvider';
+import { PasswordInput } from './PasswordInput';
 import './auth.css';
 
 export function LoginScreen() {
@@ -83,19 +84,18 @@ export function LoginScreen() {
             />
           </label>
           {method === 'password' && (
-            <label htmlFor="tresh-login-password">
-              Mot de passe
-              <input
+            <div className="password-field">
+              <label htmlFor="tresh-login-password">Mot de passe</label>
+              <PasswordInput
                 id="tresh-login-password"
                 name="password"
-                type="password"
                 value={password}
                 onChange={(event) => setPassword(event.currentTarget.value)}
                 autoComplete="current-password"
                 minLength={8}
                 required
               />
-            </label>
+            </div>
           )}
           {method === 'password' && (
             <button type="button" className="auth-link" disabled={busy} onClick={() => void forgotPassword()}>

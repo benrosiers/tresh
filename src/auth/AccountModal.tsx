@@ -1,5 +1,6 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthProvider';
+import { PasswordInput } from './PasswordInput';
 
 interface AccountModalProps {
   open: boolean;
@@ -226,26 +227,24 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
             {passwordRecovery ? (
               <p className="account-recovery-note">Choisis maintenant ton nouveau mot de passe.</p>
             ) : (
-              <label htmlFor="tresh-current-password">
-                Mot de passe actuel
-                <input
+              <div className="password-field">
+                <label htmlFor="tresh-current-password">Mot de passe actuel</label>
+                <PasswordInput
                   id="tresh-current-password"
                   name="current-password"
-                  type="password"
                   value={currentPassword}
                   onChange={(event) => setCurrentPassword(event.currentTarget.value)}
                   autoComplete="current-password"
                   required
                 />
-              </label>
+              </div>
             )}
 
-            <label htmlFor="tresh-new-password">
-              Nouveau mot de passe
-              <input
+            <div className="password-field">
+              <label htmlFor="tresh-new-password">Nouveau mot de passe</label>
+              <PasswordInput
                 id="tresh-new-password"
                 name="new-password"
-                type="password"
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.currentTarget.value)}
                 autoComplete="new-password"
@@ -253,22 +252,21 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
                 aria-describedby="tresh-password-rules"
                 required
               />
-            </label>
+            </div>
             <p id="tresh-password-rules" className="account-help">Au moins 12 caractères. Chrome peut proposer un mot de passe fort.</p>
 
-            <label htmlFor="tresh-confirm-password">
-              Confirmer le nouveau mot de passe
-              <input
+            <div className="password-field">
+              <label htmlFor="tresh-confirm-password">Confirmer le nouveau mot de passe</label>
+              <PasswordInput
                 id="tresh-confirm-password"
                 name="confirm-password"
-                type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.currentTarget.value)}
                 autoComplete="new-password"
                 minLength={12}
                 required
               />
-            </label>
+            </div>
 
             {error && <p className="auth-message auth-message--error" role="alert">{error}</p>}
             {message && <p className="auth-message auth-message--success" role="status">{message}</p>}
