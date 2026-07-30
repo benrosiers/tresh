@@ -152,9 +152,12 @@
 }
 
 .account-chip {
-  max-width: 120px;
+  display: inline-flex;
+  max-width: 160px;
+  align-items: center;
+  gap: 7px;
   overflow: hidden;
-  padding: 6px 9px;
+  padding: 3px 9px 3px 4px;
   border: 1px solid var(--editor-line);
   border-radius: 999px;
   background: transparent;
@@ -162,8 +165,12 @@
   cursor: pointer;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 10px;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-chip:hover {
@@ -965,4 +972,33 @@
   .stage {
     padding-inline: 18px;
   }
+}
+
+.publish-warning {
+  margin-top: 14px !important;
+  padding: 10px 12px;
+  border: 1px solid rgb(232 165 75 / 32%);
+  border-radius: 8px;
+  background: rgb(232 165 75 / 8%);
+  color: #f0bf78 !important;
+}
+
+.publish-success {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgb(87 217 196 / 32%);
+  border-radius: 9px;
+  background: rgb(87 217 196 / 8%);
+  color: var(--editor-accent);
+  font-size: 12px;
+}
+
+.publish-success code {
+  overflow-wrap: anywhere;
+  color: var(--editor-paper);
+}
+
+.publish-modal__actions {
+  gap: 9px;
 }

@@ -1,0 +1,12 @@
+{
+  "releaseId": "00000000-0000-4000-8000-000000000000",
+  "status": "placeholder",
+  "createdAt": "1970-01-01T00:00:00.000Z",
+  "site": {
+    "id": "00000000-0000-4000-8000-000000000000",
+    "slug": "atelier-expression",
+    "name": "Atelier Expression",
+    "publicUrl": "https://atelierexpression.ca"
+  },
+  "pages": []
+}

@@ -1,0 +1,8 @@
+[functions.publish-site]
+verify_jwt = true
+
+[functions.get-release]
+verify_jwt = false
+
+[functions.report-release]
+verify_jwt = false

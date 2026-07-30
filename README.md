@@ -11,13 +11,16 @@ The editor now includes the first production-facing draft boundary:
 - React/TypeScript visual editor with Moveable interactions
 - section creation, ordering, visibility, and confirmed deletion
 - local autosave and undo/redo
-- optional Supabase Auth gate
+- Supabase Auth with password-manager-friendly login and recovery
+- account profile, private avatar upload, and in-app password change
 - cloud draft loading and saving through RLS-protected tables
 - optimistic `lock_version` conflict protection
+- immutable page revisions and releases
+- privileged Supabase Edge Function publication boundary
+- GitHub Actions deployment template for Atelier Expression
 - local storage retained as an offline safety copy
-- publication remains deliberately disabled until releases and GitHub Actions are implemented
 
-See `docs/SUPABASE_SETUP.md` to enable authenticated cloud drafts.
+See `docs/SUPABASE_SETUP.md` for cloud drafts and `docs/STEP4_PUBLISHING.md` for account and publication setup.
 
 ## Development
 
@@ -38,11 +41,7 @@ npm run build
 
 ## Important boundary
 
-The current **Publier** action intentionally explains that production publishing is unavailable. It does not show a fake progress sequence. Production publishing will require:
-
-1. immutable page revisions and releases;
-2. a privileged Edge Function;
-3. the `benrosiers/atelierexpression` GitHub Actions workflow.
+The **Publier** action now calls a privileged Edge Function. It becomes operational after the Step 4 migration, function secrets, function deployment, and Atelier Expression workflow/adapter installation are completed. Credentials never enter the browser.
 
 ## Repository layout
 

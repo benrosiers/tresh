@@ -80,3 +80,7 @@ Reload Tresh. The status bar should change from `Sauvegardé localement` to `Sau
 - Draft writes use `save_page_draft`, which verifies edit permission server-side.
 - `lock_version` rejects stale writes instead of silently overwriting newer work.
 - Local storage remains an offline safety copy.
+
+## Next migration
+
+After cloud drafts work, apply `supabase/migrations/0002_accounts_and_releases.sql` to enable profile avatars, in-app password changes, immutable releases, and Step 4 publication. See `docs/STEP4_PUBLISHING.md`.

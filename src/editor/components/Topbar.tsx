@@ -1,4 +1,5 @@
-import { useAuth } from '../../auth';
+import { useEffect, useMemo, useState } from 'react';
+import { AccountModal, useAuth } from '../../auth';
 import { useEditor } from '../state/editorStore';
 import type { Breakpoint } from '../model/siteDocument';
 
@@ -42,71 +43,95 @@ function SaveState() {
   );
 }
 
+function initials(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || 'T';
+}
+
 export function Topbar() {
   const { state, dispatch } = useEditor();
-  const { mode, user, signOut } = useAuth();
+  const { mode, user, profile, passwordRecovery } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  useEffect(() => {
+    if (passwordRecovery) setAccountOpen(true);
+  }, [passwordRecovery]);
+
+  const accountLabel = profile.displayName || user?.email?.split('@')[0] || 'Compte';
+  const accountInitials = useMemo(() => initials(accountLabel), [accountLabel]);
 
   return (
-    <header className="topbar">
-      <div className="topbar__left">
-        <div className="editor-brand">
-          <span className="editor-brand__dot" aria-hidden="true" />
-          TRESH <strong>éditeur</strong>
+    <>
+      <header className="topbar">
+        <div className="topbar__left">
+          <div className="editor-brand">
+            <span className="editor-brand__dot" aria-hidden="true" />
+            TRESH <strong>éditeur</strong>
+          </div>
+          <div className="breadcrumbs">
+            Site : <em>Atelier Expression</em> / Accueil
+          </div>
         </div>
-        <div className="breadcrumbs">
-          Site : <em>Atelier Expression</em> / Accueil
-        </div>
-      </div>
 
-      <div className="breakpoint-switch" aria-label="Format d’aperçu">
-        {breakpoints.map(({ id, label }) => (
+        <div className="breakpoint-switch" aria-label="Format d’aperçu">
+          {breakpoints.map(({ id, label }) => (
+            <button
+              type="button"
+              className={state.breakpoint === id ? 'is-active' : ''}
+              onClick={() => dispatch({ type: 'breakpoint/set', breakpoint: id })}
+              key={id}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="topbar__right">
+          <SaveState />
+          {mode === 'signed-in' && (
+            <button
+              type="button"
+              className="account-chip"
+              title={`${accountLabel} — ouvrir les paramètres du compte`}
+              onClick={() => setAccountOpen(true)}
+            >
+              <span className="account-avatar" aria-hidden="true">
+                {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : accountInitials}
+              </span>
+              <span className="account-chip__label">{accountLabel}</span>
+            </button>
+          )}
           <button
             type="button"
-            className={state.breakpoint === id ? 'is-active' : ''}
-            onClick={() => dispatch({ type: 'breakpoint/set', breakpoint: id })}
-            key={id}
+            className="editor-button editor-button--ghost"
+            disabled={state.past.length === 0}
+            onClick={() => dispatch({ type: 'history/undo' })}
           >
-            {label}
+            Annuler
           </button>
-        ))}
-      </div>
-
-      <div className="topbar__right">
-        <SaveState />
-        {mode === 'signed-in' && (
           <button
             type="button"
-            className="account-chip"
-            title={`${user?.email ?? 'Compte Tresh'} — cliquer pour se déconnecter`}
-            onClick={() => void signOut()}
+            className="editor-button editor-button--ghost"
+            disabled={state.future.length === 0}
+            onClick={() => dispatch({ type: 'history/redo' })}
           >
-            {user?.email?.split('@')[0] ?? 'Compte'}
+            Rétablir
           </button>
-        )}
-        <button
-          type="button"
-          className="editor-button editor-button--ghost"
-          disabled={state.past.length === 0}
-          onClick={() => dispatch({ type: 'history/undo' })}
-        >
-          Annuler
-        </button>
-        <button
-          type="button"
-          className="editor-button editor-button--ghost"
-          disabled={state.future.length === 0}
-          onClick={() => dispatch({ type: 'history/redo' })}
-        >
-          Rétablir
-        </button>
-        <button
-          type="button"
-          className="editor-button editor-button--publish"
-          onClick={() => dispatch({ type: 'publish-notice/open' })}
-        >
-          Publier
-        </button>
-      </div>
-    </header>
+          <button
+            type="button"
+            className="editor-button editor-button--publish"
+            onClick={() => dispatch({ type: 'publish-notice/open' })}
+          >
+            Publier
+          </button>
+        </div>
+      </header>
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
+    </>
   );
 }

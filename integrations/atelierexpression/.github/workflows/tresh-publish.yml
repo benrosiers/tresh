@@ -1,0 +1,68 @@
+name: Publish Tresh release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Immutable Tresh release UUID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: atelierexpression-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      TRESH_RELEASE_ID: ${{ inputs.release_id }}
+      TRESH_RELEASE_ENDPOINT: ${{ secrets.TRESH_RELEASE_ENDPOINT }}
+      TRESH_RELEASE_READ_KEY: ${{ secrets.TRESH_RELEASE_READ_KEY }}
+      TRESH_RELEASE_OUTPUT: src/data/tresh-release.json
+      TRESH_RELEASE_REPORT_ENDPOINT: ${{ secrets.TRESH_RELEASE_REPORT_ENDPOINT }}
+      TRESH_RELEASE_REPORT_KEY: ${{ secrets.TRESH_RELEASE_REPORT_KEY }}
+      TRESH_GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Download immutable Tresh release
+        run: node .github/scripts/fetch-tresh-release.mjs
+
+      - name: Install
+        run: npm ci
+
+      - name: Validate
+        run: npm test --if-present
+
+      - name: Build Astro site
+        run: npm run build
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Report result to Tresh
+        if: always()
+        run: node .github/scripts/report-tresh-release.mjs "${{ job.status }}"

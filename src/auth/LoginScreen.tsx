@@ -3,7 +3,7 @@ import { useAuth } from './AuthProvider';
 import './auth.css';
 
 export function LoginScreen() {
-  const { signInWithPassword, sendMagicLink } = useAuth();
+  const { signInWithPassword, sendMagicLink, requestPasswordReset } = useAuth();
   const [method, setMethod] = useState<'magic-link' | 'password'>('magic-link');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +27,20 @@ export function LoginScreen() {
       setMessage('Lien envoyé. Ouvre ton courriel pour entrer dans Tresh.');
     }
     setBusy(false);
+  };
+
+  const forgotPassword = async () => {
+    setMessage(null);
+    setError(null);
+    if (!email.trim()) {
+      setError('Entre d’abord ton adresse courriel.');
+      return;
+    }
+    setBusy(true);
+    const resetError = await requestPasswordReset(email);
+    setBusy(false);
+    if (resetError) setError(resetError);
+    else setMessage('Courriel de réinitialisation envoyé.');
   };
 
   return (
@@ -54,21 +68,26 @@ export function LoginScreen() {
           </button>
         </div>
 
-        <form onSubmit={submit}>
-          <label>
+        <form name="tresh-login" method="post" action="/" onSubmit={submit}>
+          <label htmlFor="tresh-login-email">
             Courriel
             <input
+              id="tresh-login-email"
+              name="username"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.currentTarget.value)}
-              autoComplete="email"
+              autoComplete="username"
+              inputMode="email"
               required
             />
           </label>
           {method === 'password' && (
-            <label>
+            <label htmlFor="tresh-login-password">
               Mot de passe
               <input
+                id="tresh-login-password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.currentTarget.value)}
@@ -77,6 +96,11 @@ export function LoginScreen() {
                 required
               />
             </label>
+          )}
+          {method === 'password' && (
+            <button type="button" className="auth-link" disabled={busy} onClick={() => void forgotPassword()}>
+              Mot de passe oublié?
+            </button>
           )}
           {error && <p className="auth-message auth-message--error" role="alert">{error}</p>}
           {message && <p className="auth-message auth-message--success" role="status">{message}</p>}
