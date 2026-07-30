@@ -1,3 +1,4 @@
+import { useAuth } from '../../auth';
 import { useEditor } from '../state/editorStore';
 import type { Breakpoint } from '../model/siteDocument';
 
@@ -9,14 +10,32 @@ const breakpoints: Array<{ id: Breakpoint; label: string }> = [
 
 function SaveState() {
   const { state } = useEditor();
-  const label = state.dirty
-    ? 'Sauvegarde locale…'
-    : state.savedAt
-      ? 'Sauvegardé localement'
-      : 'Brouillon local';
+  const { mode } = useAuth();
+
+  let label = 'Brouillon local';
+  let tone = '';
+  let title = 'Le brouillon est enregistré dans ce navigateur.';
+
+  if (mode === 'signed-in') {
+    if (state.cloud.status === 'loading') label = 'Chargement du brouillon…';
+    if (state.cloud.status === 'saving' || state.dirty) label = 'Synchronisation…';
+    if (state.cloud.status === 'saved' && !state.dirty) label = 'Sauvegardé dans Tresh';
+    if (state.cloud.status === 'error') {
+      label = 'Erreur de synchronisation';
+      tone = 'is-error';
+      title = state.cloud.message ?? label;
+    }
+    if (state.cloud.status === 'conflict') {
+      label = 'Conflit de version';
+      tone = 'is-error';
+      title = state.cloud.message ?? label;
+    }
+  } else {
+    label = state.dirty ? 'Sauvegarde locale…' : state.savedAt ? 'Sauvegardé localement' : 'Brouillon local';
+  }
 
   return (
-    <div className="save-state" title="Le brouillon est enregistré uniquement dans ce navigateur pour le moment.">
+    <div className={`save-state ${tone}`} title={title}>
       <span className={`status-dot ${state.dirty ? 'is-dirty' : ''}`} aria-hidden="true" />
       {label}
     </div>
@@ -25,6 +44,7 @@ function SaveState() {
 
 export function Topbar() {
   const { state, dispatch } = useEditor();
+  const { mode, user, signOut } = useAuth();
 
   return (
     <header className="topbar">
@@ -53,6 +73,16 @@ export function Topbar() {
 
       <div className="topbar__right">
         <SaveState />
+        {mode === 'signed-in' && (
+          <button
+            type="button"
+            className="account-chip"
+            title={`${user?.email ?? 'Compte Tresh'} — cliquer pour se déconnecter`}
+            onClick={() => void signOut()}
+          >
+            {user?.email?.split('@')[0] ?? 'Compte'}
+          </button>
+        )}
         <button
           type="button"
           className="editor-button editor-button--ghost"

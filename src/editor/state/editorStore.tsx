@@ -6,29 +6,46 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
 } from 'react';
+import { useAuth } from '../../auth';
+import {
+  clearLocalDraft,
+  DraftConflictError,
+  loadCloudDraft,
+  loadLocalDraft,
+  saveCloudDraft,
+  saveLocalDraft,
+} from '../../drafts/draftRepository';
 import {
   addElementToSection,
   cloneDocument,
   findElement,
+  getPage,
   moveSection,
   patchPlacement,
   removeElement,
+  removeSection,
   updateElement,
   updateSection,
 } from '../model/documentOps';
 import { initialSiteDocument } from '../model/initialDocument';
 import {
-  parseSiteDocument,
   type Breakpoint,
   type Placement,
   type SceneElement,
   type SiteDocument,
 } from '../model/siteDocument';
 
-const STORAGE_KEY = 'tresh.local-draft.atelierexpression.v1';
-
 export type EditorMode = 'simple' | 'advanced';
+export type DraftSyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error' | 'conflict';
+
+interface CloudDraftState {
+  status: DraftSyncStatus;
+  pageId: string | null;
+  lockVersion: number;
+  message: string | null;
+}
 
 interface EditorState {
   document: SiteDocument;
@@ -43,9 +60,10 @@ interface EditorState {
   future: SiteDocument[];
   interactionBase: SiteDocument | null;
   publishNoticeOpen: boolean;
+  cloud: CloudDraftState;
 }
 
-type EditorAction =
+export type EditorAction =
   | { type: 'breakpoint/set'; breakpoint: Breakpoint }
   | { type: 'mode/set'; mode: EditorMode }
   | { type: 'element/select'; elementId: string | null; sectionId?: string }
@@ -58,11 +76,19 @@ type EditorAction =
   | { type: 'section/toggle'; sectionId: string }
   | { type: 'section/move'; sectionId: string; direction: -1 | 1 }
   | { type: 'section/add'; sectionId: string; label: string }
+  | { type: 'section/remove'; sectionId: string }
   | { type: 'interaction/start' }
   | { type: 'interaction/end' }
   | { type: 'history/undo' }
   | { type: 'history/redo' }
-  | { type: 'draft/saved'; savedAt: number }
+  | { type: 'draft/cloud-loading' }
+  | { type: 'draft/cloud-ready'; pageId: string; lockVersion: number; markDirty: boolean }
+  | { type: 'draft/hydrate'; document: SiteDocument; pageId: string; lockVersion: number; savedAt: number }
+  | { type: 'draft/saving' }
+  | { type: 'draft/local-cached'; savedAt: number }
+  | { type: 'draft/saved'; savedAt: number; lockVersion: number | null }
+  | { type: 'draft/error'; message: string }
+  | { type: 'draft/conflict'; message: string }
   | { type: 'draft/reset' }
   | { type: 'publish-notice/open' }
   | { type: 'publish-notice/close' };
@@ -74,21 +100,9 @@ interface EditorContextValue {
 
 const EditorContext = createContext<EditorContextValue | null>(null);
 
-function loadDocument(): SiteDocument {
-  if (typeof window === 'undefined') return cloneDocument(initialSiteDocument);
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (!stored) return cloneDocument(initialSiteDocument);
-
-  try {
-    return parseSiteDocument(JSON.parse(stored));
-  } catch {
-    window.localStorage.removeItem(STORAGE_KEY);
-    return cloneDocument(initialSiteDocument);
-  }
-}
-
 function initialState(): EditorState {
-  const document = loadDocument();
+  const local = loadLocalDraft();
+  const document = local?.document ?? cloneDocument(initialSiteDocument);
   const page = document.pages[0];
   const activeSectionId = page?.sections[0]?.id ?? 'hero';
   return {
@@ -99,11 +113,17 @@ function initialState(): EditorState {
     selectedId: null,
     activeSectionId,
     dirty: false,
-    savedAt: null,
+    savedAt: local?.savedAt ?? null,
     past: [],
     future: [],
     interactionBase: null,
     publishNoticeOpen: false,
+    cloud: {
+      status: 'local',
+      pageId: null,
+      lockVersion: 0,
+      message: null,
+    },
   };
 }
 
@@ -191,6 +211,22 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       });
       return { ...committed(state, next), activeSectionId: action.sectionId, selectedId: null };
     }
+    case 'section/remove': {
+      const page = getPage(state.document, state.pageId);
+      if (!page || page.sections.length <= 1) return state;
+      const index = page.sections.findIndex((section) => section.id === action.sectionId);
+      if (index < 0) return state;
+      const adjacentSectionId = page.sections[index + 1]?.id ?? page.sections[index - 1]?.id;
+      const nextActive = state.activeSectionId === action.sectionId
+        ? adjacentSectionId
+        : state.activeSectionId;
+      if (!nextActive) return state;
+      return {
+        ...committed(state, removeSection(state.document, state.pageId, action.sectionId)),
+        activeSectionId: nextActive,
+        selectedId: null,
+      };
+    }
     case 'interaction/start':
       return state.interactionBase
         ? state
@@ -207,6 +243,10 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case 'history/undo': {
       const previous = state.past.at(-1);
       if (!previous) return state;
+      const previousPage = getPage(previous, state.pageId);
+      const activeSectionId = previousPage?.sections.some((section) => section.id === state.activeSectionId)
+        ? state.activeSectionId
+        : previousPage?.sections[0]?.id ?? state.activeSectionId;
       return {
         ...state,
         document: previous,
@@ -214,11 +254,16 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         future: [state.document, ...state.future].slice(0, 50),
         dirty: true,
         selectedId: findElement(previous, state.selectedId ?? '') ? state.selectedId : null,
+        activeSectionId,
       };
     }
     case 'history/redo': {
       const next = state.future[0];
       if (!next) return state;
+      const nextPage = getPage(next, state.pageId);
+      const activeSectionId = nextPage?.sections.some((section) => section.id === state.activeSectionId)
+        ? state.activeSectionId
+        : nextPage?.sections[0]?.id ?? state.activeSectionId;
       return {
         ...state,
         document: next,
@@ -226,23 +271,72 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         future: state.future.slice(1),
         dirty: true,
         selectedId: findElement(next, state.selectedId ?? '') ? state.selectedId : null,
+        activeSectionId,
       };
     }
+    case 'draft/cloud-loading':
+      return { ...state, cloud: { ...state.cloud, status: 'loading', message: null } };
+    case 'draft/cloud-ready':
+      return {
+        ...state,
+        dirty: state.dirty || action.markDirty,
+        cloud: {
+          status: action.markDirty ? 'saving' : 'saved',
+          pageId: action.pageId,
+          lockVersion: action.lockVersion,
+          message: null,
+        },
+      };
+    case 'draft/hydrate': {
+      const page = action.document.pages[0];
+      return {
+        ...state,
+        document: action.document,
+        pageId: page?.id ?? state.pageId,
+        activeSectionId: page?.sections[0]?.id ?? state.activeSectionId,
+        selectedId: null,
+        dirty: false,
+        savedAt: action.savedAt,
+        past: [],
+        future: [],
+        interactionBase: null,
+        cloud: {
+          status: 'saved',
+          pageId: action.pageId,
+          lockVersion: action.lockVersion,
+          message: null,
+        },
+      };
+    }
+    case 'draft/saving':
+      return { ...state, cloud: { ...state.cloud, status: 'saving', message: null } };
+    case 'draft/local-cached':
+      return { ...state, savedAt: action.savedAt };
     case 'draft/saved':
-      return { ...state, dirty: false, savedAt: action.savedAt };
+      return {
+        ...state,
+        dirty: false,
+        savedAt: action.savedAt,
+        cloud: action.lockVersion === null
+          ? { ...state.cloud, status: 'local', message: null }
+          : { ...state.cloud, status: 'saved', lockVersion: action.lockVersion, message: null },
+      };
+    case 'draft/error':
+      return { ...state, dirty: false, cloud: { ...state.cloud, status: 'error', message: action.message } };
+    case 'draft/conflict':
+      return { ...state, dirty: true, cloud: { ...state.cloud, status: 'conflict', message: action.message } };
     case 'draft/reset': {
-      window.localStorage.removeItem(STORAGE_KEY);
+      clearLocalDraft();
       const document = cloneDocument(initialSiteDocument);
       return {
         ...state,
         document,
         selectedId: null,
         activeSectionId: document.pages[0]?.sections[0]?.id ?? 'hero',
-        past: [],
+        past: [...state.past.slice(-49), state.document],
         future: [],
         interactionBase: null,
-        dirty: false,
-        savedAt: Date.now(),
+        dirty: true,
       };
     }
     case 'publish-notice/open':
@@ -255,17 +349,108 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 }
 
 export function EditorProvider({ children }: PropsWithChildren) {
+  const { mode: authMode, user } = useAuth();
   const [state, dispatch] = useReducer(editorReducer, undefined, initialState);
+  const hydrationRequest = useRef<{
+    userId: string;
+    promise: ReturnType<typeof loadCloudDraft>;
+    applied: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (authMode !== 'signed-in' || !user) return;
+    if (!hydrationRequest.current || hydrationRequest.current.userId !== user.id) {
+      hydrationRequest.current = { userId: user.id, promise: loadCloudDraft(), applied: false };
+    }
+    if (hydrationRequest.current.applied) return;
+    let cancelled = false;
+
+    dispatch({ type: 'draft/cloud-loading' });
+    void hydrationRequest.current.promise
+      .then((cloudDraft) => {
+        if (cancelled) return;
+        if (hydrationRequest.current?.userId === user.id) {
+          hydrationRequest.current.applied = true;
+        }
+        const local = loadLocalDraft();
+        const localIsNewer = Boolean(
+          local && cloudDraft.updatedAt !== null && local.savedAt > cloudDraft.updatedAt,
+        );
+
+        if (!cloudDraft.document) {
+          dispatch({
+            type: 'draft/cloud-ready',
+            pageId: cloudDraft.pageId,
+            lockVersion: cloudDraft.lockVersion,
+            markDirty: true,
+          });
+          return;
+        }
+
+        if (localIsNewer) {
+          dispatch({
+            type: 'draft/cloud-ready',
+            pageId: cloudDraft.pageId,
+            lockVersion: cloudDraft.lockVersion,
+            markDirty: true,
+          });
+          return;
+        }
+
+        const savedAt = cloudDraft.updatedAt ?? Date.now();
+        saveLocalDraft({ document: cloudDraft.document, savedAt });
+        dispatch({
+          type: 'draft/hydrate',
+          document: cloudDraft.document,
+          pageId: cloudDraft.pageId,
+          lockVersion: cloudDraft.lockVersion,
+          savedAt,
+        });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        hydrationRequest.current = null;
+        const message = error instanceof Error ? error.message : 'Impossible de charger le brouillon Tresh.';
+        dispatch({ type: 'draft/error', message });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authMode, user]);
 
   useEffect(() => {
     if (!state.dirty) return;
     const handle = window.setTimeout(() => {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.document));
-      dispatch({ type: 'draft/saved', savedAt: Date.now() });
-    }, 650);
+      const savedAt = Date.now();
+      saveLocalDraft({ document: state.document, savedAt });
+
+      if (authMode !== 'signed-in' || !state.cloud.pageId) {
+        if (authMode === 'signed-in' && state.cloud.status === 'loading') {
+          dispatch({ type: 'draft/local-cached', savedAt });
+        } else {
+          dispatch({ type: 'draft/saved', savedAt, lockVersion: null });
+        }
+        return;
+      }
+
+      dispatch({ type: 'draft/saving' });
+      void saveCloudDraft(state.cloud.pageId, state.document, state.cloud.lockVersion)
+        .then((saved) => {
+          dispatch({ type: 'draft/saved', savedAt: saved.updatedAt, lockVersion: saved.lockVersion });
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DraftConflictError) {
+            dispatch({ type: 'draft/conflict', message: error.message });
+            return;
+          }
+          const message = error instanceof Error ? error.message : 'Impossible de synchroniser le brouillon.';
+          dispatch({ type: 'draft/error', message });
+        });
+    }, 800);
 
     return () => window.clearTimeout(handle);
-  }, [state.document, state.dirty]);
+  }, [authMode, state.cloud.lockVersion, state.cloud.pageId, state.dirty, state.document]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;

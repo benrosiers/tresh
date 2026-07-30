@@ -30,7 +30,7 @@
 /* Topbar */
 .topbar {
   display: grid;
-  grid-template-columns: minmax(270px, 1fr) auto minmax(350px, 1fr);
+  grid-template-columns: minmax(270px, 1fr) auto minmax(430px, 1fr);
   align-items: center;
   gap: 16px;
   padding: 0 16px;
@@ -141,6 +141,34 @@
 
 .status-dot.is-dirty {
   background: var(--editor-warn);
+}
+
+.save-state.is-error {
+  color: var(--editor-danger);
+}
+
+.save-state.is-error .status-dot {
+  background: var(--editor-danger);
+}
+
+.account-chip {
+  max-width: 120px;
+  overflow: hidden;
+  padding: 6px 9px;
+  border: 1px solid var(--editor-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--editor-steel);
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-chip:hover {
+  border-color: var(--editor-accent);
+  color: var(--editor-paper);
 }
 
 .editor-button {
@@ -688,9 +716,9 @@
 
 .section-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 22px 24px;
+  grid-template-columns: minmax(0, 1fr) 22px 22px 24px;
   align-items: center;
-  width: 166px;
+  width: 190px;
   height: 54px;
   flex: none;
   border: 1px solid var(--editor-line);
@@ -754,7 +782,8 @@
 }
 
 .section-card__moves button,
-.section-card__visibility {
+.section-card__visibility,
+.section-card__delete {
   border: 0;
   background: transparent;
   color: var(--editor-steel-low);
@@ -764,7 +793,8 @@
 }
 
 .section-card__moves button:hover:not(:disabled),
-.section-card__visibility:hover {
+.section-card__visibility:hover,
+.section-card__delete:hover:not(:disabled) {
   color: var(--editor-accent);
 }
 
@@ -778,6 +808,25 @@
 
 .section-card__visibility.is-off {
   color: var(--editor-danger);
+}
+
+.section-card__delete {
+  border: 0;
+  background: transparent;
+  color: var(--editor-steel-low);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.section-card__delete:hover:not(:disabled) {
+  color: var(--editor-danger);
+}
+
+.section-card__delete:disabled {
+  cursor: default;
+  opacity: .18;
 }
 
 /* Modal */

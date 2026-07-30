@@ -126,10 +126,15 @@ export function Inspector() {
           Sélectionne un texte, une image ou une peinture dans l’aperçu ou dans les calques.
         </p>
         <div className="inspector-group">
-          <h3>Brouillon local</h3>
+          <h3>{state.cloud.pageId ? 'Brouillon Tresh' : 'Brouillon local'}</h3>
           <p className="inspector-help">
-            Les changements sont réellement enregistrés dans ce navigateur. Ils ne sont pas encore envoyés à Supabase.
+            {state.cloud.pageId
+              ? 'Les changements sont enregistrés dans Tresh et gardés localement comme copie de secours.'
+              : 'Les changements sont enregistrés dans ce navigateur. Configure Supabase pour les retrouver sur un autre appareil.'}
           </p>
+          {state.cloud.message && (
+            <p className="inspector-help" role="alert">{state.cloud.message}</p>
+          )}
           <button
             type="button"
             className="editor-button editor-button--danger editor-button--full"

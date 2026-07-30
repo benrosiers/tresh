@@ -66,6 +66,23 @@ export function removeElement(document: SiteDocument, elementId: string): SiteDo
   };
 }
 
+export function removeSection(
+  document: SiteDocument,
+  pageId: string,
+  sectionId: string,
+): SiteDocument {
+  return {
+    ...document,
+    pages: document.pages.map((page) => {
+      if (page.id !== pageId || page.sections.length <= 1) return page;
+      return {
+        ...page,
+        sections: page.sections.filter((section) => section.id !== sectionId),
+      };
+    }),
+  };
+}
+
 export function updateSection(
   document: SiteDocument,
   sectionId: string,

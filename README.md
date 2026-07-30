@@ -6,19 +6,18 @@ The first integration target is `atelierexpression.ca`.
 
 ## Current milestone
 
-The React/TypeScript visual editor shell is now functional locally:
+The editor now includes the first production-facing draft boundary:
 
-- desktop, tablet, and mobile previews;
-- section filmstrip and reordering;
-- layer selection, visibility, and locking;
-- local addition and deletion of text, buttons, images, paints, and sections;
-- Moveable drag, resize, and rotation controls;
-- typed responsive placement inheritance;
-- undo and redo;
-- real browser-local draft persistence;
-- no fake production publishing.
+- React/TypeScript visual editor with Moveable interactions
+- section creation, ordering, visibility, and confirmed deletion
+- local autosave and undo/redo
+- optional Supabase Auth gate
+- cloud draft loading and saving through RLS-protected tables
+- optimistic `lock_version` conflict protection
+- local storage retained as an offline safety copy
+- publication remains deliberately disabled until releases and GitHub Actions are implemented
 
-The original Claude prototype remains unchanged in `prototypes/tresh-editor-v0.html` as the UX reference.
+See `docs/SUPABASE_SETUP.md` to enable authenticated cloud drafts.
 
 ## Development
 
@@ -41,16 +40,16 @@ npm run build
 
 The current **Publier** action intentionally explains that production publishing is unavailable. It does not show a fake progress sequence. Production publishing will require:
 
-1. Supabase authentication and RLS;
-2. immutable page revisions and releases;
-3. a privileged Edge Function;
-4. the `benrosiers/atelierexpression` GitHub Actions workflow.
+1. immutable page revisions and releases;
+2. a privileged Edge Function;
+3. the `benrosiers/atelierexpression` GitHub Actions workflow.
 
 ## Repository layout
 
 ```text
 src/editor/            visual editor and document model
-src/auth/              future authentication boundary
+src/auth/              Supabase Auth gate and login UI
+src/drafts/            local and Supabase draft persistence
 src/media/             future media library boundary
 src/releases/          future release history boundary
 src/integrations/      future site adapter boundary
