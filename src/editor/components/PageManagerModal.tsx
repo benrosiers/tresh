@@ -207,12 +207,14 @@ export function PageManagerModal({
               <input
                 value={draft.title}
                 maxLength={120}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+
                   setDraft((current) => ({
                     ...current,
-                    title: event.currentTarget.value,
-                  }))
-                }
+                    title: value,
+                  }));
+                }}
               />
             </label>
 
@@ -222,12 +224,14 @@ export function PageManagerModal({
                 value={draft.slug}
                 maxLength={80}
                 disabled={page.slug === 'home'}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+
                   setDraft((current) => ({
                     ...current,
-                    slug: event.currentTarget.value,
-                  }))
-                }
+                    slug: value,
+                  }));
+                }}
               />
             </label>
 
@@ -237,12 +241,14 @@ export function PageManagerModal({
                 rows={5}
                 value={draft.description}
                 maxLength={320}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+
                   setDraft((current) => ({
                     ...current,
-                    description: event.currentTarget.value,
-                  }))
-                }
+                    description: value,
+                  }));
+                }}
               />
               <small>{draft.description.length} / 320</small>
             </label>
