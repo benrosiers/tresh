@@ -684,7 +684,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...state,
         dirty: state.dirty || action.markDirty,
         cloud: {
-          status: action.markDirty ? 'saving' : 'saved',
+          status: 'saved',
           pageId: action.pageId,
           lockVersion: action.lockVersion,
           message: null,
@@ -724,9 +724,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           status:
             action.pageId === null
               ? 'local'
-              : dirty
-                ? 'saving'
-                : 'saved',
+              : 'saved',
           pageId: action.pageId,
           lockVersion: action.lockVersion,
           message: null,
