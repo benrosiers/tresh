@@ -1,4 +1,13 @@
-import type { PageDocument, ResponsivePlacement, SceneElement, SiteDocument } from './siteDocument';
+import {
+  DEFAULT_SITE_BRANDING,
+  DEFAULT_SITE_FOOTER,
+  DEFAULT_SITE_NAVIGATION,
+  type PageDocument,
+  type ResponsivePlacement,
+  type SceneElement,
+  type SiteDocument,
+} from './siteDocument';
+import { createCanonicalSecondaryPages } from './pageTemplates';
 
 const desktopPlacement = (
   xPercent: number,
@@ -54,6 +63,9 @@ const homePage: PageDocument = {
   id: '8d7ebae2-a337-42d8-b21b-b71bf345a6bf',
   slug: 'home',
   locale: 'fr-CA',
+  title: 'Accueil',
+  description:
+    "Atelier Expression propose des ateliers joyeux pour adultes qui veulent se sentir plus vivants, plus libres et plus présents.",
   sections: [
     {
       id: 'hero',
@@ -209,6 +221,20 @@ const homePage: PageDocument = {
 export const initialSiteDocument: SiteDocument = {
   schemaVersion: 1,
   siteKit: 'atelierexpression',
-  siteKitVersion: '1.0.0',
-  pages: [homePage],
+  siteKitVersion: '1.1.0',
+  branding: {
+    ...DEFAULT_SITE_BRANDING,
+  },
+  navigation: {
+    ...DEFAULT_SITE_NAVIGATION,
+    links: DEFAULT_SITE_NAVIGATION.links.map((link) => ({ ...link })),
+    height: { ...DEFAULT_SITE_NAVIGATION.height },
+  },
+  footer: {
+    ...DEFAULT_SITE_FOOTER,
+    links: DEFAULT_SITE_FOOTER.links.map((link) => ({ ...link })),
+    socialLinks: DEFAULT_SITE_FOOTER.socialLinks.map((link) => ({ ...link })),
+    height: { ...DEFAULT_SITE_FOOTER.height },
+  },
+  pages: [homePage, ...createCanonicalSecondaryPages()],
 };

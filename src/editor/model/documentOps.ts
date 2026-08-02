@@ -16,6 +16,49 @@ export function getPage(document: SiteDocument, pageId: string): PageDocument | 
   return document.pages.find((page) => page.id === pageId);
 }
 
+export function addPage(
+  document: SiteDocument,
+  page: PageDocument,
+): SiteDocument {
+  return {
+    ...document,
+    pages: [...document.pages, page],
+  };
+}
+
+export function updatePage(
+  document: SiteDocument,
+  pageId: string,
+  patch: Partial<Pick<PageDocument, 'slug' | 'title' | 'description'>>,
+): SiteDocument {
+  return {
+    ...document,
+    pages: document.pages.map((page) =>
+      page.id === pageId
+        ? {
+            ...page,
+            ...patch,
+          }
+        : page,
+    ),
+  };
+}
+
+export function removePage(
+  document: SiteDocument,
+  pageId: string,
+): SiteDocument {
+  if (document.pages.length <= 1) return document;
+
+  const page = getPage(document, pageId);
+  if (!page || page.slug === 'home') return document;
+
+  return {
+    ...document,
+    pages: document.pages.filter((candidate) => candidate.id !== pageId),
+  };
+}
+
 export function findElement(document: SiteDocument, elementId: string): SceneElement | undefined {
   for (const page of document.pages) {
     for (const section of page.sections) {

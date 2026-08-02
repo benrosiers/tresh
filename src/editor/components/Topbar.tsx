@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AccountModal, useAuth } from '../../auth';
-import { useEditor } from '../state/editorStore';
+import { getPage } from '../model/documentOps';
 import type { Breakpoint } from '../model/siteDocument';
+import { useSiteWorkspace } from '../../sites';
+import { useEditor } from '../state/editorStore';
+import { PageManagerModal } from './PageManagerModal';
+import { SiteManagerModal } from './SiteManagerModal';
+import './desktopVault.css';
 
 const breakpoints: Array<{ id: Breakpoint; label: string }> = [
   { id: 'desktop', label: 'Bureau' },
@@ -43,6 +48,41 @@ function SaveState() {
   );
 }
 
+
+function DesktopVaultState() {
+  const { state } = useEditor();
+
+  if (!state.vault.available) return null;
+
+  const busy =
+    state.vault.status === 'loading' ||
+    state.vault.status === 'saving';
+  const failed = state.vault.status === 'error';
+  const label = failed
+    ? 'Coffre local en erreur'
+    : busy
+      ? 'Coffre local…'
+      : `Coffre chiffré${
+          state.vault.backupCount > 0
+            ? ` · ${state.vault.backupCount}`
+            : ''
+        }`;
+  const title = failed
+    ? state.vault.message ?? label
+    : state.vault.path
+      ? `${label}\n${state.vault.path}`
+      : label;
+
+  return (
+    <div
+      className={`desktop-vault-state ${busy ? 'is-busy' : ''} ${failed ? 'is-error' : ''}`}
+      title={title}
+    >
+      {label}
+    </div>
+  );
+}
+
 function initials(value: string): string {
   return value
     .trim()
@@ -56,7 +96,19 @@ function initials(value: string): string {
 export function Topbar() {
   const { state, dispatch, saveNow } = useEditor();
   const { mode, user, profile, passwordRecovery } = useAuth();
+  const {
+    status: siteStatus,
+    sites,
+    activeSite,
+    selectSite,
+  } = useSiteWorkspace();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [pageManagerOpen, setPageManagerOpen] = useState(false);
+  const [siteManagerOpen, setSiteManagerOpen] = useState(false);
+  const [siteSwitching, setSiteSwitching] = useState(false);
+  const currentPage = getPage(state.document, state.pageId);
+  const publicationConfigured =
+    activeSite?.slug === 'atelier-expression';
 
   useEffect(() => {
     if (passwordRecovery) setAccountOpen(true);
@@ -106,6 +158,34 @@ export function Topbar() {
   const accountLabel = profile.displayName || user?.email?.split('@')[0] || 'Compte';
   const accountInitials = useMemo(() => initials(accountLabel), [accountLabel]);
 
+
+  const switchSite = async (siteId: string) => {
+    if (
+      siteId === activeSite?.id ||
+      siteSwitching
+    ) {
+      return;
+    }
+
+    setSiteSwitching(true);
+
+    try {
+      if (state.dirty) {
+        await saveNow();
+      }
+
+      selectSite(siteId);
+    } catch (error: unknown) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : 'Impossible de changer de site.',
+      );
+    } finally {
+      setSiteSwitching(false);
+    }
+  };
+
   return (
     <>
       <header className="topbar">
@@ -114,8 +194,62 @@ export function Topbar() {
             <span className="editor-brand__dot" aria-hidden="true" />
             TRESH <strong>éditeur</strong>
           </div>
-          <div className="breadcrumbs">
-            Site : <em>Atelier Expression</em> / Accueil
+          <div className="site-switcher">
+            <span className="site-switcher__label">Site</span>
+            <select
+              aria-label="Site actif"
+              value={activeSite?.id ?? ''}
+              disabled={
+                siteSwitching ||
+                siteStatus === 'loading' ||
+                sites.length === 0
+              }
+              onChange={(event) => {
+                void switchSite(event.currentTarget.value);
+              }}
+            >
+              {sites.length === 0 && (
+                <option value="">Aucun site</option>
+              )}
+              {sites.map((site) => (
+                <option value={site.id} key={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              title="Créer, ouvrir et gérer les sites du compte"
+              onClick={() => setSiteManagerOpen(true)}
+            >
+              Mes sites
+            </button>
+          </div>
+          <div className="page-switcher">
+            <span className="page-switcher__label">Page</span>
+            <select
+              aria-label="Page active"
+              value={state.pageId}
+              onChange={(event) =>
+                dispatch({
+                  type: 'page/select',
+                  pageId: event.currentTarget.value,
+                })
+              }
+            >
+              {state.document.pages.map((page) => (
+                <option value={page.id} key={page.id}>
+                  {page.title}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              title="Créer et gérer les pages"
+              onClick={() => setPageManagerOpen(true)}
+            >
+              Gérer
+            </button>
           </div>
         </div>
 
@@ -134,6 +268,7 @@ export function Topbar() {
 
         <div className="topbar__right">
           <SaveState />
+          <DesktopVaultState />
           {mode === 'signed-in' && (
             <button
               type="button"
@@ -179,13 +314,33 @@ export function Topbar() {
           <button
             type="button"
             className="editor-button editor-button--publish"
-            onClick={() => dispatch({ type: 'publish-notice/open' })}
+            disabled={!publicationConfigured}
+            title={
+              !publicationConfigured
+                ? 'La publication publique de ce nouveau site sera configurée dans une prochaine étape.'
+                : currentPage
+                  ? `Publier le site incluant « ${currentPage.title} »`
+                  : 'Publier le site'
+            }
+            onClick={() =>
+              dispatch({
+                type: 'publish-notice/open',
+              })
+            }
           >
             Publier
           </button>
         </div>
       </header>
       <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
+      <PageManagerModal
+        open={pageManagerOpen}
+        onClose={() => setPageManagerOpen(false)}
+      />
+      <SiteManagerModal
+        open={siteManagerOpen}
+        onClose={() => setSiteManagerOpen(false)}
+      />
     </>
   );
 }

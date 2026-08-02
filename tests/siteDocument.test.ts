@@ -180,3 +180,70 @@ describe('site document contract', () => {
   });
 
 });
+describe('site media image contract', () => {
+  it('accepts a transparent uploaded image with intrinsic dimensions', () => {
+    const page = validDocument.pages[0];
+
+    if (!page) {
+      throw new Error('Test page missing.');
+    }
+
+    const section = page.sections[0];
+
+    if (!section) {
+      throw new Error('Test section missing.');
+    }
+
+    const document = {
+      ...validDocument,
+      pages: [
+        {
+          ...page,
+          sections: [
+            {
+              ...section,
+              scene: [
+                {
+                  id: 'transparent-bubble',
+                  sectionId: section.id,
+                  type: 'image',
+                  source: {
+                    kind: 'url',
+                    url: 'https://example.com/bubble.png',
+                  },
+                  altText: {
+                    'fr-CA': 'Bulle transparente',
+                  },
+                  cornerRadius: 0,
+                  aspectRatio: 1.75,
+                  fit: 'contain',
+                  placement: {
+                    desktop: {
+                      xPercent: 50,
+                      yPercent: 50,
+                      widthPercent: 25,
+                      rotationDegrees: 0,
+                      zIndex: 4,
+                      opacity: 1,
+                    },
+                  },
+                  visible: true,
+                  locked: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const parsed = parseSiteDocument(document);
+    const image = parsed.pages[0]?.sections[0]?.scene[0];
+
+    expect(image).toMatchObject({
+      type: 'image',
+      aspectRatio: 1.75,
+      fit: 'contain',
+    });
+  });
+});

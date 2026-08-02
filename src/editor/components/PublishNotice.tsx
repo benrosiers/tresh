@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth';
+import { useSiteWorkspace } from '../../sites';
 import {
   publishSiteRelease,
   type PublishedRelease,
@@ -23,6 +24,9 @@ export function PublishNotice() {
   } = useEditor();
 
   const { mode } = useAuth();
+  const { activeSite } = useSiteWorkspace();
+  const publicationConfigured =
+    activeSite?.slug === 'atelier-expression';
 
   const [phase, setPhase] =
     useState<PublishPhase>('idle');
@@ -53,6 +57,7 @@ export function PublishNotice() {
 
   const cloudReady =
     mode === 'signed-in' &&
+    publicationConfigured &&
     Boolean(state.cloud.pageId);
 
   const draftSaved =
@@ -90,7 +95,12 @@ export function PublishNotice() {
 
       setPhase('publishing');
 
+      if (!activeSite) {
+        throw new Error('Aucun site actif.');
+      }
+
       const result = await publishSiteRelease(
+        activeSite.slug,
         lockVersion,
       );
 
@@ -240,7 +250,15 @@ export function PublishNotice() {
               confirmation avant de toucher au site public.
             </p>
 
-            {!cloudReady && (
+            {!publicationConfigured && (
+              <p className="publish-warning">
+                Ce site n’a pas encore de cible de
+                publication publique. Son brouillon reste
+                sauvegardé dans Tresh.
+              </p>
+            )}
+
+            {!cloudReady && publicationConfigured && (
               <p className="publish-warning">
                 Connecte-toi à Tresh et attends que le
                 brouillon Supabase soit chargé.

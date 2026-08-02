@@ -59,6 +59,20 @@ export function Filmstrip() {
             </button>
             <button
               type="button"
+              className="section-card__duplicate"
+              aria-label={`Dupliquer la section ${section.label}`}
+              title="Dupliquer cette section"
+              onClick={() =>
+                dispatch({
+                  type: 'section/duplicate',
+                  sectionId: section.id,
+                })
+              }
+            >
+              ⧉
+            </button>
+            <button
+              type="button"
               className="section-card__delete"
               aria-label={`Supprimer la section ${section.label}`}
               title={canDelete ? 'Supprimer cette section' : 'La page doit conserver au moins une section'}

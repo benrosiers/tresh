@@ -4,18 +4,44 @@ import {
 } from 'react';
 import {
   findElement,
+  findSection,
   resolvePlacement,
 } from '../model/documentOps';
+import {
+  getDefaultButtonStyle,
+  getDefaultTextTypography,
+  resolveButtonStyle,
+  resolveTextTypography,
+} from '../model/siteDocument';
 import type {
   Breakpoint,
+  ButtonStyle,
+  ImageFit,
+  ButtonVariant,
   ElementGlow,
   ElementShadow,
   Placement,
   SceneElement,
   ShapeKind,
+  TextAlignment,
+  TextFontFamily,
+  TextFontWeight,
+  TextTransform,
+  TextTypography,
+  TextVariant,
 } from '../model/siteDocument';
+import { uploadSiteMedia } from '../../media/siteMedia';
+import {
+  intrinsicImageFrameHeightPercent,
+  resetImageFrameHeight,
+  resolveImageCrop,
+} from '../model/imageCrop';
+import {
+  getImageSourceDetails,
+} from '../model/imageSourceDetails';
 import { useEditor } from '../state/editorStore';
 import {
+  FRAME_WIDTH,
   PAINT_COLORS,
   SHAPE_LABELS,
 } from './editorConstants';
@@ -219,7 +245,7 @@ function PlainTextField({
     dispatch({
       type: 'element/update',
       elementId: element.id,
-      updater: (current) =>
+      updater: (current: SceneElement) =>
         current.type === 'text'
           ? { ...current, text: { ...current.text, 'fr-CA': draft } }
           : current,
@@ -239,6 +265,254 @@ function PlainTextField({
   );
 }
 
+
+const FONT_FAMILY_OPTIONS: Array<{
+  value: TextFontFamily;
+  label: string;
+}> = [
+  { value: 'serif', label: 'Fraunces — sérif' },
+  { value: 'sans', label: 'Inter — sans sérif' },
+  { value: 'mono', label: 'IBM Plex Mono — mono' },
+  { value: 'system', label: 'Système' },
+];
+
+const FONT_WEIGHT_OPTIONS: TextFontWeight[] = [
+  300,
+  400,
+  500,
+  600,
+  700,
+  800,
+  900,
+];
+
+const TEXT_ALIGNMENT_OPTIONS: Array<{
+  value: TextAlignment;
+  label: string;
+  glyph: string;
+}> = [
+  { value: 'left', label: 'Aligner à gauche', glyph: '≡' },
+  { value: 'center', label: 'Centrer', glyph: '≣' },
+  { value: 'right', label: 'Aligner à droite', glyph: '≡' },
+];
+
+function TextTypographyFields({
+  element,
+}: {
+  element: Extract<SceneElement, { type: 'text' }>;
+}) {
+  const { dispatch } = useEditor();
+  const typography = resolveTextTypography(element);
+
+  const update = (
+    values: Partial<TextTypography>,
+    live = false,
+  ) => {
+    dispatch({
+      type: live ? 'element/update-live' : 'element/update',
+      elementId: element.id,
+      updater: (current: SceneElement) =>
+        current.type === 'text'
+          ? {
+              ...current,
+              typography: {
+                ...resolveTextTypography(current),
+                ...values,
+              },
+            }
+          : current,
+    });
+  };
+
+  const changeVariant = (variant: TextVariant) => {
+    dispatch({
+      type: 'element/update',
+      elementId: element.id,
+      updater: (current) =>
+        current.type === 'text'
+          ? {
+              ...current,
+              variant,
+              typography: getDefaultTextTypography(variant),
+            }
+          : current,
+    });
+  };
+
+  const reset = () => {
+    dispatch({
+      type: 'element/update',
+      elementId: element.id,
+      updater: (current) => {
+        if (current.type !== 'text') return current;
+
+        const {
+          typography: _typography,
+          ...withoutTypography
+        } = current;
+
+        return withoutTypography;
+      },
+    });
+  };
+
+  return (
+    <>
+      <label className="inspector-field">
+        <span>Style de base</span>
+        <select
+          value={element.variant}
+          onChange={(event) =>
+            changeVariant(event.currentTarget.value as TextVariant)
+          }
+        >
+          <option value="eyebrow">Surtitre</option>
+          <option value="heading">Titre</option>
+          <option value="body">Texte courant</option>
+        </select>
+      </label>
+
+      <ColorField
+        label="Couleur du texte"
+        value={typography.color}
+        onChange={(color) => update({ color })}
+      />
+
+      <label className="inspector-field">
+        <span>Police</span>
+        <select
+          value={typography.fontFamily}
+          onChange={(event) =>
+            update({
+              fontFamily:
+                event.currentTarget.value as TextFontFamily,
+            })
+          }
+        >
+          {FONT_FAMILY_OPTIONS.map((option) => (
+            <option value={option.value} key={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="inspector-field">
+        <span>Graisse</span>
+        <select
+          value={typography.fontWeight}
+          onChange={(event) =>
+            update({
+              fontWeight: Number(
+                event.currentTarget.value,
+              ) as TextFontWeight,
+            })
+          }
+        >
+          {FONT_WEIGHT_OPTIONS.map((weight) => (
+            <option value={weight} key={weight}>
+              {weight}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="effect-toggle">
+        <input
+          type="checkbox"
+          checked={typography.fontStyle === 'italic'}
+          onChange={(event) =>
+            update({
+              fontStyle: event.currentTarget.checked
+                ? 'italic'
+                : 'normal',
+            })
+          }
+        />
+        <span>Italique</span>
+      </label>
+
+      <div
+        className="typography-alignment"
+        role="group"
+        aria-label="Alignement du texte"
+      >
+        {TEXT_ALIGNMENT_OPTIONS.map((option) => (
+          <button
+            type="button"
+            className={
+              typography.textAlign === option.value
+                ? 'is-active'
+                : ''
+            }
+            aria-label={option.label}
+            aria-pressed={typography.textAlign === option.value}
+            title={option.label}
+            onClick={() => update({ textAlign: option.value })}
+            key={option.value}
+          >
+            <span
+              className={`typography-alignment__glyph typography-alignment__glyph--${option.value}`}
+              aria-hidden="true"
+            >
+              {option.glyph}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <RangeField
+        label="Hauteur de ligne"
+        value={typography.lineHeight}
+        min={0.6}
+        max={3}
+        step={0.05}
+        onChange={(lineHeight) =>
+          update({ lineHeight }, true)
+        }
+      />
+
+      <RangeField
+        label="Espacement des lettres"
+        value={typography.letterSpacing}
+        min={-0.2}
+        max={1}
+        step={0.005}
+        suffix="em"
+        onChange={(letterSpacing) =>
+          update({ letterSpacing }, true)
+        }
+      />
+
+      <label className="inspector-field">
+        <span>Casse</span>
+        <select
+          value={typography.textTransform}
+          onChange={(event) =>
+            update({
+              textTransform:
+                event.currentTarget.value as TextTransform,
+            })
+          }
+        >
+          <option value="none">Originale</option>
+          <option value="uppercase">MAJUSCULES</option>
+          <option value="lowercase">minuscules</option>
+          <option value="capitalize">Première Lettre</option>
+        </select>
+      </label>
+
+      <button
+        type="button"
+        className="editor-button editor-button--ghost editor-button--full"
+        onClick={reset}
+      >
+        Réinitialiser la typographie
+      </button>
+    </>
+  );
+}
+
 function ButtonFields({
   element,
 }: {
@@ -247,6 +521,7 @@ function ButtonFields({
   const { dispatch } = useEditor();
   const [label, setLabel] = useState(element.label['fr-CA'] ?? '');
   const [href, setHref] = useState(element.href);
+  const style = resolveButtonStyle(element);
 
   useEffect(() => {
     setLabel(element.label['fr-CA'] ?? '');
@@ -257,10 +532,73 @@ function ButtonFields({
     dispatch({
       type: 'element/update',
       elementId: element.id,
-      updater: (current) =>
+      updater: (current: SceneElement) =>
         current.type === 'button'
           ? { ...current, label: { ...current.label, 'fr-CA': label }, href }
           : current,
+    });
+  };
+
+  const updateStyle = (
+    values: Partial<ButtonStyle>,
+    live = false,
+  ) => {
+    dispatch({
+      type: live ? 'element/update-live' : 'element/update',
+      elementId: element.id,
+      updater: (current: SceneElement) =>
+        current.type === 'button'
+          ? {
+              ...current,
+              style: {
+                ...resolveButtonStyle(current),
+                ...values,
+              },
+            }
+          : current,
+    });
+  };
+
+  const changeVariant = (variant: ButtonVariant) => {
+    dispatch({
+      type: 'element/update',
+      elementId: element.id,
+      updater: (current: SceneElement) =>
+        current.type === 'button'
+          ? {
+              ...current,
+              variant,
+              style: getDefaultButtonStyle(variant),
+            }
+          : current,
+    });
+  };
+
+  const setOpenInNewTab = (openInNewTab: boolean) => {
+    dispatch({
+      type: 'element/update',
+      elementId: element.id,
+      updater: (current: SceneElement) =>
+        current.type === 'button'
+          ? { ...current, openInNewTab }
+          : current,
+    });
+  };
+
+  const resetStyle = () => {
+    dispatch({
+      type: 'element/update',
+      elementId: element.id,
+      updater: (current: SceneElement) => {
+        if (current.type !== 'button') return current;
+
+        const {
+          style: _style,
+          ...withoutStyle
+        } = current;
+
+        return withoutStyle;
+      },
     });
   };
 
@@ -274,6 +612,7 @@ function ButtonFields({
           onBlur={commit}
         />
       </label>
+
       <label className="inspector-field">
         <span>Lien</span>
         <input
@@ -282,7 +621,494 @@ function ButtonFields({
           onBlur={commit}
         />
       </label>
+
+      <label className="effect-toggle">
+        <input
+          type="checkbox"
+          checked={element.openInNewTab ?? false}
+          onChange={(event) =>
+            setOpenInNewTab(event.currentTarget.checked)
+          }
+        />
+        <span>Ouvrir dans un nouvel onglet</span>
+      </label>
+
+      <label className="inspector-field">
+        <span>Style visuel</span>
+        <select
+          value={element.variant}
+          onChange={(event) =>
+            changeVariant(event.currentTarget.value as ButtonVariant)
+          }
+        >
+          <option value="primary">Plein</option>
+          <option value="secondary">Contour</option>
+          <option value="text">Transparent</option>
+        </select>
+      </label>
+
+      <ColorField
+        label="Couleur de fond"
+        value={style.backgroundColor}
+        onChange={(backgroundColor) => updateStyle({ backgroundColor })}
+      />
+
+      <ColorField
+        label="Couleur du texte"
+        value={style.textColor}
+        onChange={(textColor) => updateStyle({ textColor })}
+      />
+
+      <ColorField
+        label="Couleur du contour"
+        value={style.borderColor}
+        onChange={(borderColor) => updateStyle({ borderColor })}
+      />
+
+      <RangeField
+        label="Épaisseur du contour"
+        value={style.borderWidth}
+        min={0}
+        max={12}
+        suffix="px"
+        onChange={(borderWidth) =>
+          updateStyle({ borderWidth }, true)
+        }
+      />
+
+      <RangeField
+        label="Coins arrondis"
+        value={style.borderRadius}
+        min={0}
+        max={999}
+        suffix="px"
+        onChange={(borderRadius) =>
+          updateStyle({ borderRadius }, true)
+        }
+      />
+
+      <label className="inspector-field">
+        <span>Police</span>
+        <select
+          value={style.fontFamily}
+          onChange={(event) =>
+            updateStyle({
+              fontFamily:
+                event.currentTarget.value as TextFontFamily,
+            })
+          }
+        >
+          {FONT_FAMILY_OPTIONS.map((option) => (
+            <option value={option.value} key={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="inspector-field">
+        <span>Graisse</span>
+        <select
+          value={style.fontWeight}
+          onChange={(event) =>
+            updateStyle({
+              fontWeight: Number(
+                event.currentTarget.value,
+              ) as TextFontWeight,
+            })
+          }
+        >
+          {FONT_WEIGHT_OPTIONS.map((weight) => (
+            <option value={weight} key={weight}>
+              {weight}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <RangeField
+        label="Taille du texte"
+        value={style.fontSize}
+        min={8}
+        max={96}
+        suffix="px"
+        onChange={(fontSize) =>
+          updateStyle({ fontSize }, true)
+        }
+      />
+
+      <div className="button-hover-fields">
+        <strong>Survol</strong>
+
+        <ColorField
+          label="Fond au survol"
+          value={style.hoverBackgroundColor}
+          onChange={(hoverBackgroundColor) =>
+            updateStyle({ hoverBackgroundColor })
+          }
+        />
+
+        <ColorField
+          label="Texte au survol"
+          value={style.hoverTextColor}
+          onChange={(hoverTextColor) =>
+            updateStyle({ hoverTextColor })
+          }
+        />
+
+        <ColorField
+          label="Contour au survol"
+          value={style.hoverBorderColor}
+          onChange={(hoverBorderColor) =>
+            updateStyle({ hoverBorderColor })
+          }
+        />
+      </div>
+
+      <button
+        type="button"
+        className="editor-button editor-button--ghost editor-button--full"
+        onClick={resetStyle}
+      >
+        Réinitialiser le style du bouton
+      </button>
     </>
+  );
+}
+
+function ImageFields({
+  element,
+}: {
+  element: Extract<SceneElement, { type: 'image' }>;
+}) {
+  const { state, dispatch, saveNow } = useEditor();
+  const [altText, setAltText] = useState(
+    element.altText['fr-CA'] ?? '',
+  );
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAltText(element.altText['fr-CA'] ?? '');
+  }, [element.id, element.altText]);
+
+  useEffect(() => {
+    setMessage(null);
+  }, [element.id]);
+
+  const placement = resolvePlacement(
+    element.placement,
+    state.breakpoint,
+  );
+  const crop = resolveImageCrop(
+    element,
+    state.breakpoint,
+  );
+  const sourceDetails = getImageSourceDetails(element);
+  const section = findSection(
+    state.document,
+    element.sectionId,
+  );
+  const frameHeightPercent =
+    crop.frameHeightPercent ??
+    intrinsicImageFrameHeightPercent(
+      placement,
+      element.aspectRatio,
+      FRAME_WIDTH[state.breakpoint],
+      section?.height[state.breakpoint] ?? 1,
+    );
+
+  const patchImagePlacement = (
+    patch: Partial<Placement>,
+    live = false,
+  ) => {
+    dispatch({
+      type: 'placement/patch',
+      elementId: element.id,
+      patch,
+      live,
+    });
+  };
+
+  const commitAltText = () => {
+    dispatch({
+      type: 'element/update',
+      elementId: element.id,
+      updater: (current) =>
+        current.type === 'image'
+          ? {
+              ...current,
+              altText: {
+                ...current.altText,
+                'fr-CA': altText,
+              },
+            }
+          : current,
+    });
+  };
+
+  const replaceImage = async (file: File) => {
+    setBusy(true);
+    setMessage(null);
+
+    try {
+      const uploaded = await uploadSiteMedia(file);
+
+      dispatch({
+        type: 'element/update',
+        elementId: element.id,
+        updater: (current) =>
+          current.type === 'image'
+            ? {
+                ...current,
+                source: {
+                  kind: 'url',
+                  url: uploaded.publicUrl,
+                  fileName: uploaded.fileName,
+                  storagePath: uploaded.storagePath,
+                  mimeType: uploaded.mimeType as
+                    | 'image/png'
+                    | 'image/jpeg'
+                    | 'image/webp',
+                },
+                aspectRatio: uploaded.aspectRatio,
+                fit: 'contain',
+                cornerRadius: 0,
+                altText: {
+                  ...current.altText,
+                  'fr-CA':
+                    current.altText['fr-CA'] ||
+                    uploaded.fileName,
+                },
+              }
+            : current,
+      });
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 0);
+      });
+      await saveNow();
+
+      setMessage(
+        `${uploaded.fileName} importé et sauvegardé — transparence conservée.`,
+      );
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Impossible d’importer ou de sauvegarder cette image.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copySource = async () => {
+    if (!sourceDetails.copyValue) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        sourceDetails.copyValue,
+      );
+      setMessage('Chemin de l’image copié.');
+    } catch {
+      setMessage(
+        'Impossible de copier automatiquement le chemin.',
+      );
+    }
+  };
+
+  return (
+    <div className="image-upload-panel">
+      <div className="image-source-card">
+        <div className="image-source-card__preview">
+          {sourceDetails.previewUrl ? (
+            <img
+              src={sourceDetails.previewUrl}
+              alt=""
+            />
+          ) : (
+            <span aria-hidden="true">▨</span>
+          )}
+        </div>
+
+        <div className="image-source-card__details">
+          <strong>{sourceDetails.fileName}</strong>
+          <span>{sourceDetails.sourceLabel}</span>
+          <code
+            title={
+              sourceDetails.storagePath ??
+              sourceDetails.publicUrl ??
+              'Aucune source persistée'
+            }
+          >
+            {sourceDetails.storagePath ??
+              sourceDetails.publicUrl ??
+              'Aucune source persistée'}
+          </code>
+          <button
+            type="button"
+            className="editor-button editor-button--ghost"
+            disabled={!sourceDetails.copyValue}
+            onClick={() => void copySource()}
+          >
+            Copier le chemin
+          </button>
+        </div>
+      </div>
+
+      <label className="inspector-field">
+        <span>Texte alternatif</span>
+        <input
+          value={altText}
+          onChange={(event) =>
+            setAltText(event.currentTarget.value)
+          }
+          onBlur={commitAltText}
+        />
+      </label>
+
+      <label className="inspector-field">
+        <span>Fichier PNG, JPEG ou WebP</span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          disabled={busy}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+
+            if (file) {
+              void replaceImage(file);
+            }
+          }}
+        />
+      </label>
+
+      <label className="inspector-field">
+        <span>Ajustement — {state.breakpoint}</span>
+        <select
+          value={crop.fit}
+          onChange={(event) => {
+            patchImagePlacement({
+              imageFit: event.currentTarget.value as ImageFit,
+            });
+          }}
+        >
+          <option value="contain">Image complète</option>
+          <option value="cover">Remplir le cadre</option>
+          <option value="fill">Étirer dans le cadre</option>
+        </select>
+      </label>
+
+      <RangeField
+        label={`Hauteur du cadre — ${state.breakpoint}`}
+        value={frameHeightPercent}
+        min={2}
+        max={100}
+        step={0.1}
+        suffix="%"
+        onChange={(heightPercent) =>
+          patchImagePlacement(
+            { heightPercent },
+            true,
+          )
+        }
+      />
+
+      {crop.fit !== 'fill' && (
+        <>
+          <RangeField
+            label={`Point focal X — ${state.breakpoint}`}
+            value={crop.focalX}
+            min={0}
+            max={100}
+            step={0.1}
+            suffix="%"
+            onChange={(imageFocalX) =>
+              patchImagePlacement(
+                { imageFocalX },
+                true,
+              )
+            }
+          />
+
+          <RangeField
+            label={`Point focal Y — ${state.breakpoint}`}
+            value={crop.focalY}
+            min={0}
+            max={100}
+            step={0.1}
+            suffix="%"
+            onChange={(imageFocalY) =>
+              patchImagePlacement(
+                { imageFocalY },
+                true,
+              )
+            }
+          />
+        </>
+      )}
+
+      <div className="image-crop-actions">
+        <button
+          type="button"
+          className="editor-button editor-button--ghost"
+          disabled={crop.fit === 'fill'}
+          onClick={() =>
+            patchImagePlacement({
+              imageFocalX: 50,
+              imageFocalY: 50,
+            })
+          }
+        >
+          Recentrer
+        </button>
+
+        <button
+          type="button"
+          className="editor-button editor-button--ghost"
+          onClick={() =>
+            dispatch({
+              type: 'element/update',
+              elementId: element.id,
+              updater: (current) =>
+                current.type === 'image'
+                  ? resetImageFrameHeight(
+                      current,
+                      state.breakpoint,
+                    )
+                  : current,
+            })
+          }
+        >
+          Cadre selon l’image
+        </button>
+      </div>
+
+      <p className="inspector-help">
+        Glisse la cible directement sur l’image sélectionnée. Les réglages
+        s’appliquent seulement au format {state.breakpoint}.
+      </p>
+
+      <p
+        className={`image-upload-status ${
+          message?.startsWith('Impossible') ||
+          message?.startsWith('Utilise') ||
+          message?.startsWith('L’image') ||
+          message?.startsWith('Le fichier') ||
+          message?.startsWith('Connecte')
+            ? 'is-error'
+            : ''
+        }`}
+        role="status"
+      >
+        {busy
+          ? 'Téléversement vers Tresh…'
+          : message ??
+            'Les PNG transparents restent transparents. Limite : 15 Mo.'}
+      </p>
+    </div>
   );
 }
 
@@ -431,6 +1257,20 @@ export function Inspector() {
           ) : (
             <ButtonFields element={element} />
           )}
+        </section>
+      )}
+
+      {element.type === 'text' && (
+        <section className="inspector-group">
+          <h3>Typographie</h3>
+          <TextTypographyFields element={element} />
+        </section>
+      )}
+
+      {element.type === 'image' && (
+        <section className="inspector-group">
+          <h3>Image</h3>
+          <ImageFields element={element} />
         </section>
       )}
 
@@ -842,6 +1682,19 @@ export function Inspector() {
           }
         >
           {element.locked ? 'Déverrouiller' : 'Verrouiller'}
+        </button>
+        <button
+          type="button"
+          className="editor-button editor-button--ghost"
+          title="Dupliquer l’élément sélectionné (Ctrl+D)"
+          onClick={() =>
+            dispatch({
+              type: 'element/duplicate',
+              elementId: element.id,
+            })
+          }
+        >
+          Dupliquer
         </button>
         <button
           type="button"

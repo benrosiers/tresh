@@ -1,0 +1,24 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.7z binary
+*.mp3 binary
+*.wav binary
+*.flac binary
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.wasm binary
+*.sqlite binary
+*.db binary
