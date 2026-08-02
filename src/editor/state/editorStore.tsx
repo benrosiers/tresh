@@ -217,7 +217,7 @@ function resolvePageState(
   };
 }
 
-function initialState(): EditorState {
+export function initialState(): EditorState {
   const document = normalizeLoadedDocument(
     cloneDocument(initialSiteDocument),
   );
@@ -266,7 +266,7 @@ function committed(state: EditorState, document: SiteDocument): EditorState {
   };
 }
 
-function editorReducer(state: EditorState, action: EditorAction): EditorState {
+export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case 'breakpoint/set':
       return {
